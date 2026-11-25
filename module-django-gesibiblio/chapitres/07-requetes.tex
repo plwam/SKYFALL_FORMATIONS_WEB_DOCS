@@ -1,0 +1,894 @@
+% =====================================================================
+%  Chapitre 7 : Gestion des requetes
+% =====================================================================
+\chapter{Gérer les requêtes et les vues}
+\label{ch:requetes}
+
+\chapitreresume{Une vue reçoit une requête et renvoie une réponse. Dans ce
+chapitre, vous explorez l'objet \code{request}, les codes de statut, les
+raccourcis \code{redirect} et \code{get\_object\_or\_404}, les convertisseurs
+d'URL, la recherche, les filtres et la pagination. Le catalogue de
+\gesibiblio{} devient une vraie application qui interroge la base de données.}
+
+\begin{objectifs}
+\begin{itemize}
+  \item Lire les informations d'une requête HTTP dans l'objet \code{request}.
+  \item Choisir le bon type de réponse et le bon code de statut.
+  \item Utiliser \code{get\_object\_or\_404}, \code{redirect} et
+        \code{reverse}.
+  \item Maîtriser les convertisseurs d'URL et les paramètres nommés.
+  \item Construire une liste avec recherche, filtre, tri et pagination.
+  \item Protéger une vue selon la méthode HTTP.
+  \item Écrire les pages d'erreur 404 et 500.
+  \item Découvrir les vues basées sur les classes en alternative.
+\end{itemize}
+\end{objectifs}
+
+\section{Le trajet complet d'une requête}
+
+Au chapitre précédent, les vues renvoyaient des données écrites à la main. Elles
+vont maintenant interroger la base. Le trajet devient complet :
+
+\begin{enumerate}
+  \item le navigateur envoie une requête \code{GET /livres/} ;
+  \item les middlewares préparent \code{request} ;
+  \item le routeur choisit la vue \code{livre\_liste} ;
+  \item la vue interroge les modèles avec l'ORM ;
+  \item la base renvoie les lignes ;
+  \item la vue transmet un contexte au gabarit ;
+  \item le gabarit produit du HTML ;
+  \item Django renvoie une \code{HttpResponse} au navigateur.
+\end{enumerate}
+
+\begin{retenir}
+Une vue est le chef d'orchestre. Elle ne contient ni HTML ni SQL : elle valide la
+requête, interroge les modèles, choisit un gabarit et renvoie une réponse. Cette
+séparation rend le code testable et lisible.
+\end{retenir}
+
+\section{L'objet request}
+
+Django construit un objet \code{HttpRequest} pour chaque requête. Les attributs
+les plus utiles :
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{4.6cm} X}
+\toprule
+\textbf{Attribut ou méthode} & \textbf{Contenu} \\
+\midrule
+\code{request.method} & Méthode HTTP : \code{"GET"}, \code{"POST"}, etc. \\
+\code{request.GET} & Paramètres de l'URL, après le point d'interrogation. \\
+\code{request.POST} & Champs du corps, pour un formulaire \code{POST}. \\
+\code{request.FILES} & Fichiers téléversés. \\
+\code{request.path} & Chemin demandé, par exemple \code{/livres/}. \\
+\code{request.GET.urlencode} & Paramètres encodés pour construire un lien. \\
+\code{request.headers} & En-têtes HTTP, insensibles à la casse. \\
+\code{request.COOKIES} & Cookies envoyés par le navigateur. \\
+\code{request.user} & Utilisateur connecté, ou \code{AnonymousUser}. \\
+\code{request.session} & Données de session. \\
+\code{request.body} & Corps brut de la requête, en octets. \\
+\code{request.content\_type} & Type de contenu annoncé. \\
+\code{request.is\_secure()} & Vrai si la requête arrive en HTTPS. \\
+\bottomrule
+\end{tabularx}
+\caption{Les attributs principaux de l'objet request.}
+\end{table}
+
+\subsection{GET et POST}
+
+\begin{codebox}[python]{Lire les paramètres}
+def recherche(request):
+    mot = request.GET.get("q", "").strip()
+    page = request.GET.get("page", "1")
+    return render(
+        request,
+        "catalogue/recherche.html",
+        {"mot": mot, "page": page},
+    )
+\end{codebox}
+
+\begin{description}[leftmargin=4.3cm,style=nextline]
+  \item[\code{request.GET["q"]}] Lève \code{KeyError} si le paramètre manque.
+  \item[\code{request.GET.get("q")}] Renvoie \code{None} si le paramètre manque.
+  \item[\code{request.GET.get("q", "")}] Renvoie une chaîne vide par défaut :
+  c'est la forme la plus sûre pour une recherche.
+  \item[\code{.strip()}] Supprime les espaces autour de la valeur.
+\end{description}
+
+\begin{attention}
+Ne faites jamais confiance aux valeurs de \code{request.GET} ou
+\code{request.POST}. Ce sont des chaînes envoyées par le client. Un utilisateur
+peut modifier l'URL, envoyer \code{page=abc} ou \code{id=-5}. Validez le type, la
+longueur et les valeurs autorisées avant d'utiliser une donnée.
+\end{attention}
+
+\subsection{Les en-têtes et la négociation de contenu}
+
+\begin{codebox}[python]{Lire un en-tête}
+navigateur = request.headers.get("User-Agent", "inconnu")
+langue = request.headers.get("Accept-Language", "fr")
+souhaite_json = "application/json" in request.headers.get("Accept", "")
+\end{codebox}
+
+\section{Construire une réponse}
+
+Django propose plusieurs classes de réponse. Elles héritent toutes de
+\code{HttpResponse}.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{5.1cm} X}
+\toprule
+\textbf{Classe ou fonction} & \textbf{Usage} \\
+\midrule
+\code{HttpResponse} & Réponse HTML ou texte brut. \\
+\code{JsonResponse} & Sérialise un dictionnaire en JSON. \\
+\code{HttpResponseRedirect} & Redirection \code{302}. \\
+\code{HttpResponsePermanentRedirect} & Redirection \code{301}. \\
+\code{HttpResponseNotFound} & Erreur \code{404}. \\
+\code{HttpResponseForbidden} & Erreur \code{403}. \\
+\code{FileResponse} & Envoie un fichier en flux. \\
+\code{StreamingHttpResponse} & Envoie un flux progressif. \\
+\code{redirect} & Raccourci de redirection. \\
+\code{render} & Charge un gabarit et renvoie une réponse. \\
+\bottomrule
+\end{tabularx}
+\caption{Les réponses les plus utilisées.}
+\end{table}
+
+\subsection{Le code de statut}
+
+\begin{codebox}[python]{Choisir un statut}
+from django.http import HttpResponse, JsonResponse
+
+
+def sante(request):
+    return JsonResponse({"statut": "ok", "version": "1.0"})
+
+
+def page_absente(request):
+    return HttpResponse(
+        "<h1>Contenu introuvable</h1>",
+        status=404,
+    )
+
+
+def methode_refusee(request):
+    return HttpResponse(
+        "Cette action n'accepte que POST.",
+        status=405,
+    )
+\end{codebox}
+
+\begin{bonne}
+Un code de statut correct aide les navigateurs, les moteurs de recherche et les
+outils de supervision. Une page \og introuvable \fg{} doit renvoyer \code{404},
+pas \code{200} avec un joli message. Une création réussie renvoie souvent
+\code{302} vers la fiche, ou \code{201} dans une API.
+\end{bonne}
+
+\subsection{Rediriger}
+
+Après un formulaire validé, on redirige vers une autre URL. Cela évite qu'un
+rafraîchissement ne renvoie le formulaire.
+
+\begin{codebox}[python]{Redirection}
+from django.shortcuts import redirect, render
+from .models import Livre
+
+
+def livre_creation_rapide(request):
+    if request.method == "POST":
+        titre = request.POST.get("titre", "").strip()
+        if titre:
+            livre = Livre.objects.create(
+                titre=titre,
+                slug=titre.lower().replace(" ", "-"),
+                isbn="9780000000000",
+                auteur_id=1,
+                annee_publication=2024,
+            )
+            return redirect(livre)
+    return render(request, "catalogue/livres/creation.html")
+\end{codebox}
+
+\begin{description}[leftmargin=4.4cm,style=nextline]
+  \item[\code{redirect("catalogue:livre\_liste")}] Redirige vers une route nommée.
+  \item[\code{redirect(livre)}] Utilise \code{livre.get\_absolute\_url()}.
+  \item[\code{redirect("/livres/")}] Redirige vers un chemin littéral, à éviter.
+\end{description}
+
+\begin{note}
+Le motif \og POST puis redirection puis GET \fg{} s'appelle le patron
+\emph{Post/Redirect/Get}. Il empêche le navigateur de proposer de renvoyer le
+formulaire lors d'un rafraîchissement. Nous l'utiliserons systématiquement avec
+les formulaires.
+\end{note}
+
+\section{Les objets et les 404}
+
+\begin{codebox}[python]{Récupérer un objet}
+from django.shortcuts import get_object_or_404, render
+from .models import Livre
+
+
+def livre_detail(request, slug):
+    livre = get_object_or_404(
+        Livre.objects.select_related("auteur").prefetch_related("categories"),
+        slug=slug,
+    )
+    return render(
+        request,
+        "catalogue/livres/detail.html",
+        {"livre": livre},
+    )
+\end{codebox}
+
+\code{get\_object\_or\_404} exécute la requête et lève une \code{Http404} si aucun
+objet ne correspond. Django renvoie alors la page 404, ou la page de débogage en
+développement. Sans ce raccourci, il faudrait écrire :
+
+\begin{codebox}[python]{Équivalent sans raccourci}
+from django.http import Http404
+
+try:
+    livre = Livre.objects.get(slug=slug)
+except Livre.DoesNotExist:
+    raise Http404("Ce livre n'existe pas.")
+\end{codebox}
+
+\begin{bonne}
+Utilisez \code{get\_object\_or\_404} pour toute fiche accessible par URL. Cela
+évite une erreur 500 lorsqu'un identifiant n'existe pas et donne au visiteur une
+réponse propre. Il existe aussi \code{get\_list\_or\_404} pour les listes.
+\end{bonne}
+
+\begin{attention}
+\code{get()} sans filtre unique peut lever \code{MultipleObjectsReturned}. Un slug
+ou un ISBN sont uniques : ce sont de bons paramètres d'URL. N'utilisez pas
+\code{titre} comme identifiant, deux livres peuvent avoir le même titre.
+\end{attention}
+
+\section{Les URL et leurs convertisseurs}
+
+Une URL peut capturer une partie du chemin et la passer à la vue.
+
+\begin{codebox}[python]{catalogue/urls.py}
+from django.urls import path
+from . import views
+
+app_name = "catalogue"
+
+urlpatterns = [
+    path("", views.accueil, name="accueil"),
+    path("a-propos/", views.a_propos, name="a_propos"),
+    path("livres/", views.livre_liste, name="livre_liste"),
+    path("livres/<slug:slug>/", views.livre_detail, name="livre_detail"),
+    path(
+        "categories/<slug:slug>/",
+        views.categorie_detail,
+        name="categorie_detail",
+    ),
+    path("auteurs/<int:pk>/", views.auteur_detail, name="auteur_detail"),
+]
+\end{codebox}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{3.1cm} L{4.6cm} X}
+\toprule
+\textbf{Convertisseur} & \textbf{Exemple} & \textbf{Valeur reçue} \\
+\midrule
+\code{str} & \code{<str:nom>} & Toute chaîne sans barre oblique. \\
+\code{int} & \code{<int:pk>} & Un entier positif ou nul. \\
+\code{slug} & \code{<slug:slug>} & Lettres, chiffres, tirets et soulignés. \\
+\code{uuid} & \code{<uuid:identifiant>} & Un UUID sous forme de chaîne. \\
+\code{path} & \code{<path:chemin>} & Une chaîne qui peut contenir des barres. \\
+\bottomrule
+\end{tabularx}
+\caption{Convertisseurs d'URL fournis par Django.}
+\end{table}
+
+\begin{codebox}[python]{Vue avec paramètre entier}
+def auteur_detail(request, pk):
+    auteur = get_object_or_404(
+        Auteur.objects.prefetch_related("livres"),
+        pk=pk,
+    )
+    return render(
+        request,
+        "catalogue/auteurs/detail.html",
+        {"auteur": auteur},
+    )
+\end{codebox}
+
+\begin{note}
+Le convertisseur \code{int} refuse les valeurs négatives et les lettres : Django
+renvoie directement une 404, la vue n'est jamais appelée. C'est une première
+barrière de validation, gratuite et fiable.
+\end{note}
+
+\subsection{Les paramètres nommés}
+
+\begin{codebox}[python]{Paramètres nommés dans une URL}
+path(
+    "livres/<int:annee>/<slug:slug>/",
+    views.livre_par_annee,
+    name="livre_par_annee",
+),
+\end{codebox}
+
+La vue doit alors accepter les deux arguments :
+
+\begin{codebox}[python]{Signature correspondante}
+def livre_par_annee(request, annee, slug):
+    ...
+\end{codebox}
+
+\begin{attention}
+L'ordre des \code{path} compte. Une route trop générale placée avant une route
+précise capture les URL. Par exemple, \code{<str:nom>/} placé avant
+\code{livres/} empêcherait d'atteindre le catalogue. Placez les routes
+spécifiques en premier.
+\end{attention}
+
+\subsection{reverse et resolve}
+
+\begin{codebox}[python]{Construire et analyser une URL}
+from django.urls import resolve, reverse
+
+url = reverse("catalogue:livre_detail", kwargs={"slug": "le-petit-prince"})
+# /livres/le-petit-prince/
+
+vue = resolve("/livres/le-petit-prince/")
+vue.func          # la fonction livre_detail
+vue.kwargs        # {'slug': 'le-petit-prince'}
+vue.url_name      # 'livre_detail'
+vue.namespace     # 'catalogue'
+\end{codebox}
+
+\begin{bonne}
+Dans le code Python, utilisez \code{reverse}. Dans un gabarit, utilisez
+\code{\{\% url \%\}}. Ces deux fonctions construisent les liens à partir du nom
+de route et évitent les chemins codés en dur.
+\end{bonne}
+
+\section{La liste des livres}
+
+Nous allons construire une liste complète : recherche, filtre par catégorie, tri et
+pagination.
+
+\subsection{La vue}
+
+\begin{codebox}[python]{catalogue/views.py, extrait}
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404, render
+
+from .models import Auteur, Categorie, Livre
+
+TRI_AUTORISE = {
+    "titre": "titre",
+    "recent": "-annee_publication",
+    "auteur": "auteur__nom",
+}
+
+
+def livre_liste(request):
+    livres = (
+        Livre.objects.select_related("auteur")
+        .prefetch_related("categories")
+    )
+
+    mot = request.GET.get("q", "").strip()
+    if mot:
+        livres = livres.filter(
+            Q(titre__icontains=mot)
+            | Q(auteur__nom__icontains=mot)
+            | Q(isbn__icontains=mot)
+        )
+
+    categorie_slug = request.GET.get("categorie", "").strip()
+    if categorie_slug:
+        livres = livres.filter(categories__slug=categorie_slug)
+
+    tri = request.GET.get("tri", "titre")
+    livres = livres.order_by(TRI_AUTORISE.get(tri, "titre"))
+
+    paginator = Paginator(livres, 6)
+    page = paginator.get_page(request.GET.get("page"))
+
+    categories = Categorie.objects.annotate(
+        nb_livres=Count("livres")
+    )
+
+    contexte = {
+        "page_obj": page,
+        "livres": page.object_list,
+        "categories": categories,
+        "mot": mot,
+        "categorie_active": categorie_slug,
+        "tri": tri,
+        "nombre_resultats": paginator.count,
+    }
+    return render(request, "catalogue/livres/liste.html", contexte)
+\end{codebox}
+
+\begin{attention}
+Ne confondez pas deux usages du symbole \code{|}. À l'intérieur d'un
+\code{filter}, \code{Q(...) | Q(...)} combine des conditions dans la même
+requête : c'est la forme recommandée. Entre deux QuerySets,
+\code{queryset1 | queryset2} fusionne deux résultats, ne dédoublonne pas toujours
+et empêche parfois d'enchaîner un filtre. Pour une recherche sur plusieurs champs,
+utilisez \code{Q}.
+\end{attention}
+
+\subsection{Comprendre la pagination}
+
+\begin{codebox}[python]{Le Paginator}
+from django.core.paginator import Paginator
+
+paginator = Paginator(Livre.objects.all(), 6)
+page = paginator.get_page(3)
+\end{codebox}
+
+\begin{description}[leftmargin=4.6cm,style=nextline]
+  \item[\code{paginator.count}] Nombre total d'objets.
+  \item[\code{paginator.num\_pages}] Nombre total de pages.
+  \item[\code{paginator.page\_range}] Plage de numéros de page.
+  \item[\code{page.number}] Numéro de la page courante.
+  \item[\code{page.object\_list}] Objets de la page.
+  \item[\code{page.has\_previous()}] Vrai s'il existe une page avant.
+  \item[\code{page.has\_next()}] Vrai s'il existe une page après.
+  \item[\code{page.previous\_page\_number}] Numéro de la page précédente.
+  \item[\code{page.next\_page\_number}] Numéro de la page suivante.
+  \item[\code{paginator.get\_page(n)}] Renvoie la page \code{n}, ou la première ou
+  la dernière page si la valeur est invalide. Ne lève pas d'erreur : c'est la
+  méthode à utiliser avec un paramètre utilisateur.
+\end{description}
+
+\begin{bonne}
+\code{get\_page()} accepte \code{None}, une chaîne vide, \code{"abc"} ou un numéro
+hors limites sans lever d'exception. Il renvoie la page appropriée. Préférez-le à
+\code{paginator.page()}, qui lève \code{EmptyPage} ou \code{PageNotAnInteger}.
+\end{bonne}
+
+\subsection{Le gabarit de liste}
+
+\begin{codebox}[html]{templates/catalogue/livres/liste.html}
+{% extends "base.html" %}
+{% load biblio %}
+
+{% block titre %}Catalogue | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <h1>Catalogue</h1>
+
+  <form method="get" class="formulaire filtre">
+    <div class="champ">
+      <label for="q">Rechercher</label>
+      <input type="search" id="q" name="q" value="{{ mot }}"
+             placeholder="Titre, auteur ou ISBN">
+    </div>
+    <div class="champ">
+      <label for="categorie">Catégorie</label>
+      <select id="categorie" name="categorie">
+        <option value="">Toutes</option>
+        {% for categorie in categories %}
+          <option value="{{ categorie.slug }}"
+            {% if categorie.slug == categorie_active %}selected{% endif %}>
+            {{ categorie.nom }} ({{ categorie.nb_livres }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="champ">
+      <label for="tri">Trier par</label>
+      <select id="tri" name="tri">
+        <option value="titre" {% if tri == "titre" %}selected{% endif %}>
+          Titre
+        </option>
+        <option value="recent" {% if tri == "recent" %}selected{% endif %}>
+          Année décroissante
+        </option>
+        <option value="auteur" {% if tri == "auteur" %}selected{% endif %}>
+          Auteur
+        </option>
+      </select>
+    </div>
+    <button class="bouton bouton-principal" type="submit">Filtrer</button>
+  </form>
+
+  <p>
+    {{ nombre_resultats }} livre{{ nombre_resultats|pluralize }}
+    trouvé{{ nombre_resultats|pluralize }}.
+  </p>
+
+  <div class="grille-livres">
+    {% for livre in livres %}
+      {% carte_livre livre %}
+    {% empty %}
+      <p>Aucun livre ne correspond à votre recherche.</p>
+    {% endfor %}
+  </div>
+
+  {% if page_obj.has_other_pages %}
+    <nav class="pagination" aria-label="Pagination du catalogue">
+      {% if page_obj.has_previous %}
+        <a href="{% url_page page_obj.previous_page_number %}">Précédent</a>
+      {% endif %}
+      <span>
+        Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+      </span>
+      {% if page_obj.has_next %}
+        <a href="{% url_page page_obj.next_page_number %}">Suivant</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endblock %}
+\end{codebox}
+
+\begin{note}
+La balise \code{url\_page} a été créée au chapitre précédent. Elle conserve les
+paramètres \code{q}, \code{categorie} et \code{tri} en changeant seulement
+\code{page}. Sans elle, la page suivante perdrait les filtres.
+\end{note}
+
+\subsection{La fiche d'un livre}
+
+\begin{codebox}[html]{templates/catalogue/livres/detail.html}
+{% extends "base.html" %}
+
+{% block titre %}{{ livre.titre }} | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <article class="fiche-livre">
+    {% if livre.couverture %}
+      <img src="{{ livre.couverture.url }}"
+           alt="Couverture de {{ livre.titre }}">
+    {% else %}
+      <div class="couverture-vide" aria-hidden="true">
+        {{ livre.titre|first }}
+      </div>
+    {% endif %}
+
+    <div>
+      <p class="surtitre">{{ livre.get_statut_display }}</p>
+      <h1>{{ livre.titre }}</h1>
+      {% if livre.sous_titre %}
+        <p class="auteur">{{ livre.sous_titre }}</p>
+      {% endif %}
+
+      <dl>
+        <dt>Auteur</dt>
+        <dd>
+          <a href="{% url 'catalogue:auteur_detail' livre.auteur.pk %}">
+            {{ livre.auteur }}
+          </a>
+        </dd>
+        <dt>Éditeur</dt>
+        <dd>{{ livre.editeur|default:"Non renseigné" }}</dd>
+        <dt>Année</dt>
+        <dd>{{ livre.annee_publication }}</dd>
+        <dt>ISBN</dt>
+        <dd>{{ livre.isbn }}</dd>
+        <dt>Catégories</dt>
+        <dd>
+          {% for categorie in livre.categories.all %}
+            <a href="{% url 'catalogue:categorie_detail' categorie.slug %}">
+              {{ categorie.nom }}
+            </a>{% if not forloop.last %}, {% endif %}
+          {% empty %}
+            Aucune catégorie
+          {% endfor %}
+        </dd>
+        <dt>Exemplaires</dt>
+        <dd>
+          {{ livre.exemplaires_disponibles }} disponible{{
+          livre.exemplaires_disponibles|pluralize }} sur
+          {{ livre.nombre_exemplaires }}
+        </dd>
+      </dl>
+
+      {% if livre.resume %}
+        <h2>Résumé</h2>
+        <div>{{ livre.resume|linebreaks }}</div>
+      {% endif %}
+    </div>
+  </article>
+{% endblock %}
+\end{codebox}
+
+\begin{attention}
+Sur la ligne des exemplaires, le gabarit coupe une expression sur deux lignes. En
+HTML, un retour à la ligne entre deux mots affiche un espace : c'est correct. Mais
+ne coupez jamais une balise \code{\{\{ ... \}\}} au milieu de son contenu, cela
+provoque une erreur de gabarit.
+\end{attention}
+
+\subsection{Les vues de catégorie et d'auteur}
+
+\begin{codebox}[python]{catalogue/views.py, extrait}
+def categorie_detail(request, slug):
+    categorie = get_object_or_404(Categorie, slug=slug)
+    livres = (
+        categorie.livres.select_related("auteur")
+        .prefetch_related("categories")
+    )
+    return render(
+        request,
+        "catalogue/categories/detail.html",
+        {"categorie": categorie, "livres": livres},
+    )
+
+
+def auteur_detail(request, pk):
+    auteur = get_object_or_404(Auteur, pk=pk)
+    livres = auteur.livres.select_related("auteur")
+    return render(
+        request,
+        "catalogue/auteurs/detail.html",
+        {"auteur": auteur, "livres": livres},
+    )
+\end{codebox}
+
+\begin{note}
+\code{categorie.livres} est un gestionnaire lié par \code{related\_name}. Il se
+comporte comme \code{Livre.objects}, mais limité aux livres de la catégorie. On
+peut donc enchaîner \code{filter}, \code{select\_related} et \code{order\_by}.
+\end{note}
+
+\section{Protéger une vue selon la méthode HTTP}
+
+Certaines actions ne doivent accepter que \code{POST}. Django fournit des
+décorateurs.
+
+\begin{codebox}[python]{Décorateurs de méthode}
+from django.views.decorators.http import (
+    require_GET,
+    require_POST,
+    require_http_methods,
+)
+
+
+@require_GET
+def livre_liste(request):
+    ...
+
+
+@require_POST
+def livre_supprimer(request, pk):
+    ...
+
+
+@require_http_methods(["GET", "POST"])
+def livre_modifier(request, pk):
+    ...
+\end{codebox}
+
+Si la méthode ne correspond pas, Django renvoie \code{405 Method Not Allowed}.
+C'est plus propre qu'un message maison et plus sûr qu'une suppression déclenchée
+par un simple lien.
+
+\begin{attention}
+Ne supprimez jamais une donnée avec un lien \code{<a href="...">}. Un moteur de
+recherche ou un antivirus peut suivre le lien et supprimer vos enregistrements. La
+suppression se fait avec un formulaire \code{POST}, une confirmation et, idéalement,
+une vérification de permission.
+\end{attention}
+
+\section{Les pages d'erreur}
+
+En développement, Django affiche une page de débogage détaillée. En production,
+avec \code{DEBUG = False}, il utilise des gabarits.
+
+\begin{codebox}[html]{templates/404.html}
+{% extends "base.html" %}
+
+{% block titre %}Page introuvable | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <section class="hero">
+    <div>
+      <p class="surtitre">Erreur 404</p>
+      <h1>Cette page est introuvable.</h1>
+      <p>Le livre que vous cherchez a peut-être changé de rayon.</p>
+      <a class="bouton bouton-principal"
+         href="{% url 'catalogue:accueil' %}">Retour à l'accueil</a>
+    </div>
+  </section>
+{% endblock %}
+\end{codebox}
+
+\begin{codebox}[html]{templates/500.html}
+{% extends "base.html" %}
+
+{% block titre %}Erreur serveur | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <section class="hero">
+    <div>
+      <p class="surtitre">Erreur 500</p>
+      <h1>Une erreur est survenue.</h1>
+      <p>Réessayez dans quelques instants. L'incident a été signalé.</p>
+      <a class="bouton" href="/">Retour à l'accueil</a>
+    </div>
+  </section>
+{% endblock %}
+\end{codebox}
+
+\begin{attention}
+Le gabarit \code{500.html} ne doit pas dépendre de données ou de balises
+personnalisées. Si une erreur se produit, le rendu de la page d'erreur peut lui
+aussi échouer. Restez simple et n'utilisez pas \code{url} dans \code{500.html} :
+préférez un chemin littéral ou une page statique.
+\end{attention}
+
+Pour tester, créez un fichier \code{.env} ou modifiez temporairement
+\code{settings.py} :
+
+\begin{codebox}[python]{gesibiblio/settings.py, extrait}
+DEBUG = False
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
+\end{codebox}
+
+Puis lancez \code{python manage.py runserver --insecure} pour servir les fichiers
+statiques malgré \code{DEBUG = False}. N'oubliez pas de remettre
+\code{DEBUG = True} ensuite.
+
+\section{Les vues basées sur les classes}
+
+Les vues basées sur les fonctions sont le fil principal de ce module. Django
+propose aussi des classes génériques, plus concises pour les cas standard.
+
+\begin{codebox}[python]{catalogue/views.py, alternative CBV}
+from django.views.generic import DetailView, ListView
+
+from .models import Livre
+
+
+class LivreListView(ListView):
+    model = Livre
+    template_name = "catalogue/livres/liste.html"
+    context_object_name = "livres"
+    paginate_by = 6
+
+    def get_queryset(self):
+        return Livre.objects.select_related("auteur")
+
+
+class LivreDetailView(DetailView):
+    model = Livre
+    template_name = "catalogue/livres/detail.html"
+    context_object_name = "livre"
+\end{codebox}
+
+\begin{codebox}[python]{catalogue/urls.py, alternative CBV}
+path("livres/", views.LivreListView.as_view(), name="livre_liste"),
+path("livres/<slug:slug>/", views.LivreDetailView.as_view(), name="livre_detail"),
+\end{codebox}
+
+\begin{description}[leftmargin=4.4cm,style=nextline]
+  \item[\code{ListView}] Récupère une liste, la pagine et la place dans le
+  contexte. Le nom par défaut est \code{object\_list} ; ici, il devient
+  \code{livres} grâce à \code{context\_object\_name}.
+  \item[\code{DetailView}] Récupère un objet à partir de \code{pk} ou
+  \code{slug}. Le nom par défaut est \code{object}.
+  \item[\code{get\_queryset()}] Point d'entrée pour filtrer ou optimiser la
+  requête.
+\end{description}
+
+\begin{bonne}
+Pour un débutant, les vues basées sur les fonctions sont plus faciles à lire et à
+déboguer. Les classes deviennent intéressantes quand vous répétez le même schéma
+de liste ou de détail. Ne mélangez pas les deux styles dans une même vue.
+\end{bonne}
+
+\begin{piege}
+Si vous remplacez une vue fonction par une classe, pensez à \code{.as\_view()} dans
+\code{urls.py}. Sans cela, Django reçoit une classe et non une fonction : vous
+obtenez une erreur \code{TypeError} ou un comportement inattendu.
+\end{piege}
+
+\section{Exercices}
+
+\begin{exercice}[ : fiche catégorie]
+Écrivez la vue \code{categorie\_detail} et son gabarit. La page affiche le nom de
+la catégorie, sa description et la liste de ses livres. Ajoutez un compteur et un
+lien vers chaque fiche.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[html]{templates/catalogue/categories/detail.html}
+{% extends "base.html" %}
+{% load biblio %}
+
+{% block titre %}{{ categorie.nom }} | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <h1>{{ categorie.nom }}</h1>
+  {% if categorie.description %}
+    <p>{{ categorie.description }}</p>
+  {% endif %}
+  <p>
+    {{ livres|length }} livre{{ livres|length|pluralize }} dans cette catégorie.
+  </p>
+  <div class="grille-livres">
+    {% for livre in livres %}
+      {% carte_livre livre %}
+    {% empty %}
+      <p>Aucun livre dans cette catégorie.</p>
+    {% endfor %}
+  </div>
+{% endblock %}
+\end{codebox}
+
+La vue est donnée plus haut. Vérifiez la route
+\code{categories/<slug:slug>/} et le \code{related\_name} du modèle.
+\end{correction}
+
+\begin{exercice}[ : recherche par année]
+Ajoutez un filtre \code{annee} à la liste des livres. L'utilisateur saisit une
+année et la liste ne montre que les livres publiés cette année-là. Si la valeur
+n'est pas un nombre, ignorez le filtre.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[python]{catalogue/views.py, extrait}
+annee = request.GET.get("annee", "").strip()
+if annee.isdigit():
+    livres = livres.filter(annee_publication=int(annee))
+\end{codebox}
+
+\begin{codebox}[html]{templates/catalogue/livres/liste.html, extrait}
+<div class="champ">
+  <label for="annee">Année</label>
+  <input type="number" id="annee" name="annee" value="{{ request.GET.annee }}">
+</div>
+\end{codebox}
+
+\code{isdigit()} évite une erreur \code{ValueError} si l'utilisateur envoie
+\code{annee=abc}. Le filtre est simplement ignoré.
+\end{correction}
+
+\begin{exercice}[ : réponse JSON]
+Créez une vue \code{/api/livres/} qui renvoie la liste des titres et des auteurs
+au format JSON. Utilisez \code{JsonResponse} et \code{values()}.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[python]{catalogue/views.py, extrait}
+from django.http import JsonResponse
+
+
+def api_livres(request):
+    donnees = list(
+        Livre.objects.values("titre", "auteur__nom", "annee_publication")
+    )
+    return JsonResponse({"livres": donnees})
+\end{codebox}
+
+\begin{codebox}[python]{catalogue/urls.py, extrait}
+path("api/livres/", views.api_livres, name="api_livres"),
+\end{codebox}
+
+\code{values()} renvoie des dictionnaires, directement sérialisables.
+\code{JsonResponse} ajoute l'en-tête \code{Content-Type: application/json}.
+\end{correction}
+
+\begin{retenir}
+\begin{itemize}
+  \item \code{request} contient la méthode, les paramètres, les fichiers, les
+        en-têtes et l'utilisateur.
+  \item \code{get\_object\_or\_404} transforme un objet absent en page 404.
+  \item \code{redirect} évite le renvoi de formulaire au rafraîchissement.
+  \item Les convertisseurs \code{int} et \code{slug} valident l'URL avant la vue.
+  \item \code{Paginator} et \code{get\_page} paginent sans erreur.
+  \item Une action qui modifie des données passe par \code{POST}.
+  \item Les vues basées sur les classes sont une alternative, pas une obligation.
+\end{itemize}
+\end{retenir}

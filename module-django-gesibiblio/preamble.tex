@@ -1,0 +1,360 @@
+% =====================================================================
+%  PREAMBULE DU MODULE
+%  Initiation au developpement web avec Django
+%  Auteur : LWANZO PATERNE
+%  Formation propulsee par GESITECHNOLOGIES
+% =====================================================================
+
+% ---------- Encodage, langue, polices ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[french]{babel}
+\usepackage{microtype}
+\usepackage{csquotes}
+
+% ---------- Mise en page ----------
+\usepackage[a4paper,top=2.3cm,bottom=2.3cm,left=2.35cm,right=2.35cm,headheight=15pt,footskip=1.1cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{multicol}
+\usepackage{ragged2e}
+\usepackage{setspace}
+
+% ---------- Couleurs de la charte ----------
+\definecolor{navy}{HTML}{1F3A5F}
+\definecolor{navyclair}{HTML}{2E5077}
+\definecolor{teal}{HTML}{2A9D8F}
+\definecolor{tealclair}{HTML}{7FC8BE}
+\definecolor{amber}{HTML}{E9C46A}
+\definecolor{coral}{HTML}{E76F51}
+\definecolor{grey}{HTML}{5C677D}
+\definecolor{greyclair}{HTML}{E8ECF1}
+\definecolor{codebg}{HTML}{F6F8FA}
+\definecolor{codeframe}{HTML}{D6DEE8}
+\definecolor{purple}{HTML}{6D597A}
+\definecolor{green}{HTML}{2D6A4F}
+
+% ---------- Liens ----------
+\usepackage[colorlinks=true,linkcolor=navy,urlcolor=teal,citecolor=teal,bookmarksnumbered=true,bookmarksopen=true]{hyperref}
+\usepackage{bookmark}
+
+% ---------- Titres ----------
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\sffamily\bfseries\color{navy}}
+  {\filright\fontsize{54}{54}\selectfont\color{teal!35}\thechapter}
+  {0.6ex}
+  {\filright\Huge}
+  [{\vspace{0.7ex}{\color{teal}\titlerule[1.4pt]}}]
+\titlespacing*{\chapter}{0pt}{-24pt}{28pt}
+
+\titleformat{\section}
+  {\normalfont\sffamily\Large\bfseries\color{navy}}
+  {\thesection}{0.8em}{}
+  [{\vspace{0.2ex}{\color{teal!45}\titlerule[0.5pt]}}]
+\titlespacing*{\section}{0pt}{1.9em}{0.9em}
+
+\titleformat{\subsection}
+  {\normalfont\sffamily\large\bfseries\color{teal!75!black}}
+  {\thesubsection}{0.7em}{}
+\titlespacing*{\subsection}{0pt}{1.5em}{0.6em}
+
+\titleformat{\subsubsection}
+  {\normalfont\sffamily\normalsize\bfseries\color{navy}}
+  {\thesubsubsection}{0.6em}{}
+
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+% ---------- En-tetes et pieds de page ----------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily\color{grey}\nouppercase{\leftmark}}
+\fancyhead[R]{\small\sffamily\color{grey}GesiBiblio}
+\fancyfoot[C]{\small\sffamily\color{grey}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{greyclair}\leaders\hrule height \headrulewidth\hfill}}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[C]{\small\sffamily\color{grey}\thepage}%
+  \renewcommand{\headrulewidth}{0pt}%
+}
+
+% ---------- Paragraphes et listes ----------
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlength{\emergencystretch}{3em}
+\onehalfspacing
+\setlist[itemize]{leftmargin=1.5em,itemsep=0.25em,topsep=0.3em}
+\setlist[enumerate]{leftmargin=1.7em,itemsep=0.25em,topsep=0.3em}
+
+% ---------- Legendes et tableaux ----------
+\usepackage[font=small,labelfont={bf,sf,color=navy},textfont={it},labelsep=period]{caption}
+\renewcommand{\arraystretch}{1.22}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\Centering\arraybackslash}p{#1}}
+
+% ---------- Boites colorees ----------
+\usepackage{fontawesome5}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{listings,skins,breakable}
+
+\newtcolorbox{objectifs}{
+  enhanced, breakable,
+  colback=teal!7, colframe=teal, boxrule=0.7pt, arc=2mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faBullseye\ \ Objectifs du chapitre},
+  fonttitle=\sffamily\bfseries, coltitle=white, colbacktitle=teal,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  top=5mm
+}
+
+\newtcolorbox{retenir}{
+  enhanced, breakable,
+  colback=amber!12, colframe=amber!85!black, boxrule=0.7pt, arc=2mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faLightbulb\ \ A retenir},
+  fonttitle=\sffamily\bfseries, coltitle=navy, colbacktitle=amber,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  top=5mm
+}
+
+\newtcolorbox{bonne}{
+  enhanced, breakable,
+  colback=teal!5, colframe=teal!65!black, boxrule=0.7pt, arc=2mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faCheckCircle\ \ Bonne pratique},
+  fonttitle=\sffamily\bfseries, coltitle=white, colbacktitle=teal!65!black,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  top=5mm
+}
+
+\newtcolorbox{attention}{
+  enhanced, breakable,
+  colback=coral!7, colframe=coral, boxrule=0.7pt, arc=2mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faExclamationTriangle\ \ Attention},
+  fonttitle=\sffamily\bfseries, coltitle=white, colbacktitle=coral,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  top=5mm
+}
+
+\newtcolorbox{piege}{
+  enhanced, breakable,
+  colback=coral!6, colframe=coral!85!black, boxrule=0.7pt, arc=2mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faTimesCircle\ \ Erreur frequente},
+  fonttitle=\sffamily\bfseries, coltitle=white, colbacktitle=coral!85!black,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  top=5mm
+}
+
+\newtcolorbox{note}{
+  enhanced, breakable,
+  colback=navy!4, colframe=navy!55, boxrule=0.7pt, arc=2mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faInfoCircle\ \ Note},
+  fonttitle=\sffamily\bfseries, coltitle=white, colbacktitle=navy!70,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  top=5mm
+}
+
+\newcounter{exo}[chapter]
+\renewcommand{\theexo}{\thechapter.\arabic{exo}}
+\newtcolorbox[use counter=exo]{exercice}[1][]{
+  enhanced, breakable,
+  colback=navy!3, colframe=navy, boxrule=0.7pt, arc=2mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faPen\ \ Exercice \thetcbcounter\ #1},
+  fonttitle=\sffamily\bfseries, coltitle=white, colbacktitle=navy,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  top=5mm
+}
+
+\newtcolorbox{correction}{
+  enhanced, breakable,
+  colback=white, colframe=grey!45, boxrule=0.6pt, arc=2mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faCheck\ \ Correction},
+  fonttitle=\sffamily\bfseries, coltitle=white, colbacktitle=grey,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  top=5mm
+}
+
+% ---------- Code source colore ----------
+\lstdefinestyle{base}{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{navy}\bfseries,
+  commentstyle=\color{grey}\itshape,
+  stringstyle=\color{coral!85!black},
+  numberstyle=\tiny\color{grey},
+  numbers=left,
+  numbersep=7pt,
+  backgroundcolor=\color{codebg},
+  showstringspaces=false,
+  showtabs=false,
+  tabsize=4,
+  keepspaces=true,
+  breaklines=true,
+  breakatwhitespace=false,
+  postbreak=\mbox{\textcolor{teal}{$\hookrightarrow$}\space},
+  columns=fullflexible,
+  frame=none,
+  aboveskip=0pt,
+  belowskip=0pt,
+  extendedchars=true,
+  inputencoding=utf8,
+  literate=
+    {é}{{\'e}}1
+    {è}{{\`e}}1
+    {ê}{{\^e}}1
+    {ë}{{\"e}}1
+    {à}{{\`a}}1
+    {â}{{\^a}}1
+    {ä}{{\"a}}1
+    {î}{{\^i}}1
+    {ï}{{\"i}}1
+    {ô}{{\^o}}1
+    {ö}{{\"o}}1
+    {ù}{{\`u}}1
+    {û}{{\^u}}1
+    {ç}{{\c c}}1
+    {œ}{{\oe}}1
+    {Œ}{{\OE}}1
+    {É}{{\'E}}1
+    {È}{{\`E}}1
+    {Ê}{{\^E}}1
+    {À}{{\`A}}1
+    {Â}{{\^A}}1
+    {Î}{{\^I}}1
+    {Ô}{{\^O}}1
+    {Ù}{{\`U}}1
+    {Ç}{{\c C}}1
+    {«}{{\guillemotleft}}1
+    {»}{{\guillemotright}}1
+    {’}{{'}}1
+    {…}{{\ldots}}1,
+}
+
+\lstdefinestyle{python}{
+  style=base,
+  language=Python,
+  morekeywords={self,super,True,False,None,async,await,match,case},
+  morecomment=[s]{"""}{"""},
+  morecomment=[s]{'''}{'''}
+}
+
+\lstdefinestyle{html}{
+  style=base,
+  language=HTML,
+}
+
+\lstdefinestyle{css}{
+  style=base,
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+  morestring=[b]'
+}
+
+\lstdefinestyle{bash}{
+  style=base,
+  language=sh,
+  numbers=none,
+  keywordstyle=\color{amber!90!black}\bfseries,
+  stringstyle=\color{tealclair},
+  backgroundcolor=\color{navy!92},
+  basicstyle=\ttfamily\small\color{white}
+}
+
+\lstdefinestyle{tree}{
+  style=base,
+  numbers=none,
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{white},
+  keywordstyle=\color{navy}
+}
+
+\lstdefinestyle{json}{
+  style=base,
+  morestring=[b]",
+  morekeywords={true,false,null},
+  keywordstyle=\color{coral!85!black}\bfseries
+}
+
+\lstdefinestyle{javascript}{
+  style=base,
+  morekeywords={const,let,var,if,else,return,function,true,false,null,
+                document,window,forEach,setTimeout,querySelector,
+                querySelectorAll,addEventListener,classList,setAttribute},
+  morecomment=[l]{//},
+  morestring=[b]",
+  morestring=[b]'
+}
+
+\newtcblisting[auto counter]{codebox}[2][]{
+  enhanced, breakable,
+  colback=codebg, colframe=codeframe,
+  boxrule=0.6pt, arc=1.5mm,
+  left=2mm, right=2mm, top=1.5mm, bottom=1.5mm,
+  title={\faCode\ \texttt{#2}},
+  fonttitle=\sffamily\small, coltitle=white, colbacktitle=navy,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  listing only,
+  listing options={style=#1},
+  top=4mm
+}
+
+\newtcblisting{terminal}{
+  enhanced, breakable,
+  colback=navy!92, colframe=navy!92,
+  boxrule=0pt, arc=1.5mm,
+  left=3mm, right=3mm, top=2mm, bottom=2mm,
+  title={\faTerminal\ \ Terminal},
+  fonttitle=\sffamily\small\bfseries, coltitle=white, colbacktitle=black,
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={arc=1mm,boxrule=0pt},
+  listing only,
+  listing options={style=bash},
+  top=4mm
+}
+
+% ---------- Raccourcis ----------
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\django}{Django}
+\newcommand{\gesibiblio}{\textsf{GesiBiblio}}
+\newcommand{\fichier}[1]{\texttt{\small #1}}
+\newcommand{\cle}[1]{\textsf{\textbf{#1}}}
+
+% ---------- Divers ----------
+\hypersetup{
+  pdftitle={Initiation au developpement web avec Django},
+  pdfauthor={LWANZO PATERNE},
+  pdfsubject={Formation Django, niveau debutant, projet GesiBiblio},
+  pdfkeywords={Django, Python, web, bibliotheque, formation, GESITECHNOLOGIES}
+}
+
+\newcommand{\chapitreresume}[1]{%
+  \begin{center}
+    \begin{minipage}{0.92\textwidth}
+      \itshape\color{grey}#1
+    \end{minipage}
+  \end{center}
+  \vspace{0.4em}
+}

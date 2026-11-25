@@ -1,0 +1,412 @@
+% =====================================================================
+%  Annexe B : Aide-memoire
+% =====================================================================
+\chapter{Aide-mémoire}
+\label{ann:aide-memoire}
+
+\chapitreresume{Cette annexe rassemble les commandes, les réglages, les balises et
+les méthodes que l'on oublie le plus vite. Gardez-la à portée de main pendant vos
+premiers projets.}
+
+\section{Commandes}
+
+\begin{longtable}{L{5.5cm} L{9.7cm}}
+\toprule
+\textbf{Commande} & \textbf{Effet} \\
+\midrule
+\endhead
+\code{django-admin startproject nom .} & Crée un projet dans le dossier courant. \\
+\code{python manage.py startapp app} & Crée une application. \\
+\code{python manage.py runserver} & Lance le serveur de développement. \\
+\code{python manage.py runserver 8080} & Lance le serveur sur le port 8080. \\
+\code{python manage.py makemigrations} & Prépare les migrations. \\
+\code{python manage.py migrate} & Applique les migrations. \\
+\code{python manage.py showmigrations} & Affiche l'état des migrations. \\
+\code{python manage.py sqlmigrate app 0001} & Affiche le SQL d'une migration. \\
+\code{python manage.py createsuperuser} & Crée un superutilisateur. \\
+\code{python manage.py changepassword user} & Change un mot de passe. \\
+\code{python manage.py shell} & Ouvre un shell avec Django configuré. \\
+\code{python manage.py test} & Lance les tests. \\
+\code{python manage.py collectstatic} & Rassemble les fichiers statiques. \\
+\code{python manage.py check} & Vérifie la configuration. \\
+\code{python manage.py check --deploy} & Vérifie la sécurité de production. \\
+\code{python manage.py dumpdata} & Exporte les données en JSON. \\
+\code{python manage.py loaddata fichier.json} & Importe des données. \\
+\code{python manage.py flush} & Vide la base, sans supprimer les tables. \\
+\code{python -m pip freeze > requirements.txt} & Fige les dépendances. \\
+\bottomrule
+\end{longtable}
+
+\section{Réglages essentiels}
+
+\begin{longtable}{L{5.6cm} L{9.6cm}}
+\toprule
+\textbf{Réglage} & \textbf{Rôle} \\
+\midrule
+\endhead
+\code{DEBUG} & Mode développement. \code{False} en production. \\
+\code{SECRET\_KEY} & Clé de signature. Secrète, longue, unique. \\
+\code{ALLOWED\_HOSTS} & Domaines acceptés. Obligatoire si
+\code{DEBUG = False}. \\
+\code{INSTALLED\_APPS} & Applications actives. \\
+\code{MIDDLEWARE} & Couches de traitement des requêtes. \\
+\code{ROOT\_URLCONF} & Module d'URL racine. \\
+\code{TEMPLATES} & Moteur et dossiers de gabarits. \\
+\code{DATABASES} & Connexion à la base. \\
+\code{LANGUAGE\_CODE} & Langue, par exemple \code{fr-fr}. \\
+\code{TIME\_ZONE} & Fuseau horaire. \\
+\code{STATIC\_URL} & Préfixe des fichiers statiques. \\
+\code{STATICFILES\_DIRS} & Dossiers sources des fichiers statiques. \\
+\code{STATIC\_ROOT} & Destination de \code{collectstatic}. \\
+\code{MEDIA\_URL} & Préfixe des fichiers envoyés. \\
+\code{MEDIA\_ROOT} & Dossier de stockage des fichiers envoyés. \\
+\code{LOGIN\_URL} & Route de connexion. \\
+\code{LOGIN\_REDIRECT\_URL} & Page après connexion. \\
+\code{AUTH\_PASSWORD\_VALIDATORS} & Règles de mot de passe. \\
+\code{EMAIL\_BACKEND} & Mode d'envoi des courriers. \\
+\bottomrule
+\end{longtable}
+
+\section{URL et routage}
+
+\begin{codebox}[python]{catalogue/urls.py, modèle}
+from django.urls import include, path, re_path
+from . import views
+
+app_name = "catalogue"
+
+urlpatterns = [
+    path("", views.accueil, name="accueil"),
+    path("livres/", views.livre_liste, name="livre_liste"),
+    path("livres/<slug:slug>/", views.livre_detail, name="livre_detail"),
+    path("auteurs/<int:pk>/", views.auteur_detail, name="auteur_detail"),
+    re_path(r"^annee/(?P<annee>[0-9]{4})/$", views.par_annee),
+]
+\end{codebox}
+
+\begin{longtable}{L{3.8cm} L{11.4cm}}
+\toprule
+\textbf{Convertisseur} & \textbf{Correspond à} \\
+\midrule
+\endhead
+\code{str} & Toute chaîne sans barre oblique. \\
+\code{int} & Entier positif ou nul. \\
+\code{slug} & Lettres, chiffres, tirets et soulignés. \\
+\code{uuid} & Identifiant UUID. \\
+\code{path} & Chaîne pouvant contenir des barres obliques. \\
+\bottomrule
+\end{longtable}
+
+\begin{codebox}[python]{Construire une URL}
+from django.urls import reverse
+
+reverse("catalogue:livre_detail", kwargs={"slug": "le-petit-prince"})
+reverse("catalogue:livre_detail", args=["le-petit-prince"])
+\end{codebox}
+
+\section{Modèles et champs}
+
+\begin{longtable}{L{4.3cm} L{4.5cm} L{6.1cm}}
+\toprule
+\textbf{Champ} & \textbf{Argument clé} & \textbf{Usage} \\
+\midrule
+\endhead
+\code{CharField} & \code{max\_length} & Texte court. \\
+\code{TextField} & & Texte long. \\
+\code{SlugField} & \code{unique} & Identifiant d'URL. \\
+\code{EmailField} & & Adresse validée. \\
+\code{IntegerField} & \code{default} & Entier. \\
+\code{DecimalField} & \code{max\_digits}, \code{decimal\_places} & Montant exact. \\
+\code{BooleanField} & \code{default} & Vrai ou faux. \\
+\code{DateField} & \code{auto\_now\_add} & Date. \\
+\code{DateTimeField} & \code{auto\_now} & Date et heure. \\
+\code{ImageField} & \code{upload\_to} & Image, avec Pillow. \\
+\code{ForeignKey} & \code{on\_delete}, \code{related\_name} & Un à plusieurs. \\
+\code{ManyToManyField} & \code{related\_name} & Plusieurs à plusieurs. \\
+\code{OneToOneField} & \code{on\_delete} & Un à un. \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{L{3.3cm} L{11.9cm}}
+\toprule
+\textbf{\code{on\_delete}} & \textbf{Comportement} \\
+\midrule
+\endhead
+\code{CASCADE} & Supprime les objets liés. \\
+\code{PROTECT} & Refuse la suppression s'il existe des objets liés. \\
+\code{RESTRICT} & Refuse, avec une sémantique plus récente. \\
+\code{SET\_NULL} & Met la clé à \code{NULL} ; exige \code{null=True}. \\
+\code{SET\_DEFAULT} & Met la valeur par défaut. \\
+\code{DO\_NOTHING} & Ne fait rien : risque d'incohérence. \\
+\bottomrule
+\end{longtable}
+
+\section{Requêtes ORM}
+
+\begin{codebox}[python]{Les requêtes à connaître}
+from django.db.models import Avg, Count, F, Q
+
+Model.objects.all()
+Model.objects.filter(champ=valeur)
+Model.objects.exclude(champ=valeur)
+Model.objects.get(pk=1)
+Model.objects.create(champ=valeur)
+Model.objects.order_by("-date")
+Model.objects.filter(champ__icontains="mot")
+Model.objects.filter(date__gte="2024-01-01")
+Model.objects.filter(champ__in=[1, 2, 3])
+Model.objects.filter(champ__isnull=True)
+Model.objects.filter(Q(a=1) | Q(b=2))
+Model.objects.select_related("fk")
+Model.objects.prefetch_related("m2m")
+Model.objects.annotate(total=Count("enfants"))
+Model.objects.aggregate(moyenne=Avg("note"))
+Model.objects.values("champ")
+Model.objects.values_list("champ", flat=True)
+Model.objects.count()
+Model.objects.exists()
+Model.objects.first()
+Model.objects.last()
+Model.objects.update_or_create(pk=1, defaults={"champ": valeur})
+Model.objects.get_or_create(champ=valeur, defaults={...})
+instance.save()
+instance.delete()
+\end{codebox}
+
+\begin{codebox}[python]{Méthodes de QuerySet}
+qs.filter(...)
+qs.exclude(...)
+qs.order_by("champ")
+qs.distinct()
+qs.values("a", "b")
+qs.annotate(...)
+qs.aggregate(...)
+qs.exists()
+qs.count()
+qs.first()
+qs.last()
+qs[:10]
+qs.iterator()
+\end{codebox}
+
+\section{Balises et filtres de gabarit}
+
+\begin{longtable}{L{4.6cm} L{10.6cm}}
+\toprule
+\textbf{Balise} & \textbf{Rôle} \\
+\midrule
+\endhead
+\code{\{\% if ... \%\}} & Condition. \\
+\code{\{\% for x in liste \%\}} & Boucle, avec \code{\{\% empty \%\}}. \\
+\code{\{\% with x=... \%\}} & Alias. \\
+\code{\{\% url "nom" arg \%\}} & Construit une URL. \\
+\code{\{\% include "f.html" \%\}} & Inclut un gabarit. \\
+\code{\{\% extends "base.html" \%\}} & Héritage. \\
+\code{\{\% block nom \%\}} & Zone remplaçable. \\
+\code{\{\% csrf\_token \%\}} & Jeton de formulaire. \\
+\code{\{\% load static \%\}} & Charge les fichiers statiques. \\
+\code{\{\% static "css/a.css" \%\}} & URL d'un fichier statique. \\
+\code{\{\% load biblio \%\}} & Charge vos balises. \\
+\code{\{\% comment \%\}} & Bloc ignoré. \\
+\code{\{\% verbatim \%\}} & Affiche les accolades telles quelles. \\
+\code{\{\% now "d/m/Y" \%\}} & Date courante. \\
+\code{\{\% firstof a b c \%\}} & Première valeur non vide. \\
+\code{\{\% cycle "a" "b" \%\}} & Alterne des valeurs. \\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{L{4.6cm} L{10.6cm}}
+\toprule
+\textbf{Filtre} & \textbf{Effet} \\
+\midrule
+\endhead
+\code{length} & Taille d'une liste ou d'une chaîne. \\
+\code{upper}, \code{lower} & Casse. \\
+\code{capfirst}, \code{title} & Majuscules. \\
+\code{truncatechars:80} & Coupe à 80 caractères. \\
+\code{truncatewords:15} & Coupe à 15 mots. \\
+\code{date:"d/m/Y"} & Formate une date. \\
+\code{time:"H:i"} & Formate une heure. \\
+\code{floatformat:2} & Deux décimales. \\
+\code{default:"..."} & Valeur de remplacement. \\
+\code{default\_if\_none:"..."} & Remplace seulement \code{None}. \\
+\code{join:", "} & Joint une liste. \\
+\code{pluralize} & Ajoute un \og s \fg{} si nécessaire. \\
+\code{yesno:"Oui,Non"} & Traduit un booléen. \\
+\code{linebreaks} & Transforme les sauts de ligne en paragraphes. \\
+\code{escape} & Échappe le HTML. \\
+\code{safe} & Désactive l'échappement. À éviter. \\
+\code{slugify} & Transforme en slug. \\
+\code{striptags} & Supprime les balises HTML. \\
+\bottomrule
+\end{longtable}
+
+\section{Formulaires}
+
+\begin{codebox}[python]{Form et ModelForm}
+from django import forms
+from .models import Livre
+
+
+class ContactForm(forms.Form):
+    nom = forms.CharField(max_length=80)
+    email = forms.EmailField()
+    message = forms.CharField(widget=forms.Textarea)
+
+
+class LivreForm(forms.ModelForm):
+    class Meta:
+        model = Livre
+        fields = ["titre", "auteur", "annee_publication"]
+        widgets = {
+            "annee_publication": forms.NumberInput(attrs={"min": 1450}),
+        }
+\end{codebox}
+
+\begin{codebox}[python]{Traiter un formulaire}
+def vue(request):
+    if request.method == "POST":
+        form = MonForm(request.POST, request.FILES)
+        if form.is_valid():
+            objet = form.save()
+            return redirect(objet)
+    else:
+        form = MonForm()
+    return render(request, "page.html", {"form": form})
+\end{codebox}
+
+\begin{longtable}{L{5.2cm} L{10cm}}
+\toprule
+\textbf{Élément} & \textbf{Rôle} \\
+\midrule
+\endhead
+\code{form.is\_valid()} & Valide et renvoie un booléen. \\
+\code{form.cleaned\_data} & Valeurs nettoyées. \\
+\code{form.errors} & Erreurs par champ. \\
+\code{form.non\_field\_errors} & Erreurs globales. \\
+\code{clean\_<champ>()} & Validation d'un champ. \\
+\code{clean()} & Validation globale. \\
+\code{form.save(commit=False)} & Prépare sans enregistrer. \\
+\code{form.save\_m2m()} & Enregistre les relations plusieurs à plusieurs. \\
+\code{formset} & Groupe de formulaires identiques. \\
+\bottomrule
+\end{longtable}
+
+\section{Authentification et permissions}
+
+\begin{codebox}[python]{Fonctions et décorateurs}
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import (
+    login_required,
+    permission_required,
+)
+from django.contrib.auth.mixins import (
+    LoginRequiredMixin,
+    PermissionRequiredMixin,
+)
+
+user = authenticate(request, username=u, password=p)
+login(request, user)
+logout(request)
+
+@login_required
+def vue(request):
+    ...
+
+@permission_required("catalogue.add_livre", raise_exception=True)
+def vue2(request):
+    ...
+\end{codebox}
+
+\begin{longtable}{L{6.0cm} L{9.2cm}}
+\toprule
+\textbf{Élément} & \textbf{Rôle} \\
+\midrule
+\endhead
+\code{request.user} & Utilisateur courant. \\
+\code{request.user.is\_authenticated} & Vrai si connecté. \\
+\code{request.user.is\_staff} & Accès à l'administration. \\
+\code{request.user.is\_superuser} & Tous les droits. \\
+\code{user.has\_perm("app.code")} & Vérifie une permission. \\
+\code{perms.app.code} & Vérification dans un gabarit. \\
+\code{Group} & Groupe de permissions. \\
+\code{user.groups.add(groupe)} & Ajoute un utilisateur à un groupe. \\
+\bottomrule
+\end{longtable}
+
+\section{Administration}
+
+\begin{codebox}[python]{ModelAdmin minimal}
+from django.contrib import admin
+from .models import Livre
+
+
+@admin.register(Livre)
+class LivreAdmin(admin.ModelAdmin):
+    list_display = ("titre", "auteur", "statut")
+    list_filter = ("statut",)
+    search_fields = ("titre", "isbn")
+    ordering = ("titre",)
+    list_select_related = ("auteur",)
+    date_hierarchy = "cree_le"
+    readonly_fields = ("cree_le", "modifie_le")
+\end{codebox}
+
+\section{Codes HTTP}
+
+\begin{longtable}{L{2.4cm} L{12.8cm}}
+\toprule
+\textbf{Code} & \textbf{Signification} \\
+\midrule
+\endhead
+\code{200} & OK. \\
+\code{201} & Créé. \\
+\code{204} & Aucun contenu. \\
+\code{301} & Déplacé de façon permanente. \\
+\code{302} & Redirection temporaire. \\
+\code{304} & Non modifié, cache valide. \\
+\code{400} & Requête invalide. \\
+\code{401} & Authentification requise. \\
+\code{403} & Accès interdit. \\
+\code{404} & Ressource introuvable. \\
+\code{405} & Méthode non autorisée. \\
+\code{409} & Conflit. \\
+\code{429} & Trop de requêtes. \\
+\code{500} & Erreur interne du serveur. \\
+\code{502} & Mauvaise passerelle. \\
+\code{503} & Service indisponible. \\
+\bottomrule
+\end{longtable}
+
+\section{Vues basées sur les classes}
+
+\begin{longtable}{L{5.2cm} L{10cm}}
+\toprule
+\textbf{Classe} & \textbf{Rôle} \\
+\midrule
+\endhead
+\code{TemplateView} & Affiche un gabarit. \\
+\code{ListView} & Liste paginée. \\
+\code{DetailView} & Fiche d'un objet. \\
+\code{CreateView} & Création avec \code{ModelForm}. \\
+\code{UpdateView} & Modification. \\
+\code{DeleteView} & Suppression avec confirmation. \\
+\code{FormView} & Formulaire non lié à un modèle. \\
+\code{RedirectView} & Redirection. \\
+\bottomrule
+\end{longtable}
+
+\begin{codebox}[python]{Exemple de ListView}
+from django.views.generic import ListView
+from .models import Livre
+
+
+class LivreListView(ListView):
+    model = Livre
+    template_name = "catalogue/livres/liste.html"
+    context_object_name = "livres"
+    paginate_by = 6
+
+    def get_queryset(self):
+        return Livre.objects.select_related("auteur")
+\end{codebox}

@@ -1,0 +1,46 @@
+% =====================================================================
+%  Page de garde
+% =====================================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture, overlay]
+  \fill[navy] (current page.north west) rectangle ([xshift=2.1cm]current page.south west);
+  \fill[teal] ([xshift=2.1cm]current page.north west) rectangle ([xshift=2.35cm]current page.south west);
+\end{tikzpicture}
+
+\hspace*{1.15cm}%
+\begin{minipage}[t]{0.86\textwidth}
+\raggedright
+\vspace*{0.35cm}
+\hfill\includegraphics[width=5.1cm]{images/logo-gesi.png}
+
+\vspace{1.5cm}
+{\sffamily\color{teal}\Large\bfseries FORMATION PROFESSIONNELLE\par}
+\vspace{0.65cm}
+{\sffamily\bfseries\color{navy}\fontsize{31}{37}\selectfont
+Initiation au développement web avec Django\par}
+\vspace{0.65cm}
+{\sffamily\color{grey}\Large
+Développer une application de gestion de bibliothèque, pas à pas\par}
+\vspace{0.85cm}
+{\color{teal}\rule{7cm}{1.4pt}}
+\vspace{0.85cm}
+
+{\large\color{navy}
+\textbf{Projet fil rouge :} \gesibiblio\\[0.35em]
+\textbf{Public :} débutants en développement web\\[0.35em]
+\textbf{Durée :} 48 heures de formation guidée
+\par}
+
+\vfill
+{\sffamily\LARGE\bfseries\color{navy} LWANZO PATERNE\par}
+\vspace{0.25cm}
+{\sffamily\color{grey} Formateur en développement web\par}
+\vspace{0.7cm}
+{\sffamily\small\color{grey}
+Formation propulsée par\\[0.25em]
+{\Large\bfseries\color{navy} GESITECHNOLOGIES}\par}
+\vspace{0.45cm}
+{\sffamily\small\color{grey} \today\par}
+\end{minipage}
+\end{titlepage}

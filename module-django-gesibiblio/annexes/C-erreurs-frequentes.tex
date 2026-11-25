@@ -1,0 +1,260 @@
+% =====================================================================
+%  Annexe C : Erreurs frequentes
+% =====================================================================
+\chapter{Erreurs fréquentes et solutions}
+\label{ann:erreurs}
+
+\chapitreresume{Cette annexe classe les erreurs que l'on rencontre le plus souvent
+en apprenant Django. Pour chacune, elle donne le message typique, la cause probable
+et la correction. Lisez toujours le message complet : Django indique presque
+toujours le fichier et la ligne.}
+
+\section{Lire un message d'erreur}
+
+Un message Django contient généralement :
+\begin{enumerate}
+  \item le type d'exception, par exemple \code{TemplateDoesNotExist} ;
+  \item la valeur ou le nom concerné ;
+  \item la liste des chemins essayés, pour les gabarits ;
+  \item la trace complète, avec les fichiers et les lignes.
+\end{enumerate}
+
+\begin{bonne}
+Lisez la dernière ligne d'abord, puis remontez la trace. La dernière ligne donne
+l'exception ; la première ligne de votre code dans la trace indique souvent
+l'endroit à corriger. Ne copiez pas tout le message dans un moteur de recherche :
+cherchez d'abord le type d'exception et le nom du fichier.
+\end{bonne}
+
+\section{Erreurs de projet et de configuration}
+
+\begin{longtable}{L{5.2cm} L{4.5cm} L{4.7cm}}
+\toprule
+\textbf{Message} & \textbf{Cause} & \textbf{Correction} \\
+\midrule
+\endhead
+\footnotesize
+\code{ModuleNotFoundError} & Django absent de l'environnement virtuel
+ou environnement inactif. & Activez \code{.venv}, puis
+\code{pip install Django}. \\
+\code{No installed app} & Le label \code{catalogue} est inconnu :
+application absente de \code{INSTALLED\_APPS}. & Ajoutez
+\code{"catalogue"} dans les réglages, ou \code{CatalogueConfig}
+dans \code{apps.py}. \\
+\code{ModuleNotFoundError} & Le paquet \code{catalogue} est
+introuvable : dossier mal placé ou \code{\_\_init\_\_.py} absent. & Vérifiez l'arborescence et le fichier
+\code{\_\_init\_\_.py}. \\
+\code{ImproperlyConfigured} & Clé \code{SECRET\_KEY} absente ou vide. & Définissez
+\code{SECRET\_KEY} dans \code{settings.py} ou l'environnement. \\
+\code{DisallowedHost} & Domaine absent de \code{ALLOWED\_HOSTS}. & Ajoutez le
+domaine, ou \code{localhost} et \code{127.0.0.1} en développement. \\
+Port déjà utilisé & Un serveur tourne déjà. & Utilisez
+\code{runserver 8001} ou arrêtez l'autre processus. \\
+\code{ImportError} & Import circulaire ou nom \code{X} inexistant. &
+Déplacez l'import dans une fonction, ou corrigez le nom. \\
+\bottomrule
+\end{longtable}
+
+\section{Erreurs d'URL et de vue}
+
+\begin{longtable}{L{5.2cm} L{4.5cm} L{4.7cm}}
+\toprule
+\textbf{Message} & \textbf{Cause} & \textbf{Correction} \\
+\midrule
+\endhead
+\footnotesize
+\code{NoReverseMatch} & Nom de route inconnu ou argument manquant. & Vérifiez
+\code{app\_name}, le \code{name} de la route et les paramètres. \\
+\code{Page not found (404)} & Aucune route ne correspond. & Vérifiez l'ordre des
+\code{path} et le slash final. \\
+\code{TypeError} & Une classe de vue est passée sans
+\code{.as\_view()}. & Ajoutez \code{.as\_view()}. \\
+\code{AttributeError} & \code{include} pointe vers un module sans
+\code{urlpatterns}. & Créez \code{urls.py} avec
+\code{urlpatterns}. \\
+\code{404} sur un slug valide & Le convertisseur ne correspond pas. & Utilisez
+\code{<slug:slug>} et vérifiez la valeur en base. \\
+\code{405 Method Not Allowed} & Vue limitée à \code{GET} ou \code{POST}. &
+Adaptez le décorateur ou envoyez la bonne méthode. \\
+\code{CSRF verification failed} & Jeton absent ou cookie bloqué
+(erreur 403). & Ajoutez
+\code{\{\% csrf\_token \%\}} et vérifiez les cookies. \\
+\bottomrule
+\end{longtable}
+
+\section{Erreurs de gabarit}
+
+\begin{longtable}{L{5.2cm} L{4.5cm} L{4.7cm}}
+\toprule
+\textbf{Message} & \textbf{Cause} & \textbf{Correction} \\
+\midrule
+\endhead
+\footnotesize
+\code{TemplateDoesNotExist} & Chemin incorrect ou dossier absent de
+\code{DIRS}. & Vérifiez \code{TEMPLATES} et le chemin exact. \\
+\code{Invalid block tag} & Balise mal orthographiée ou non chargée. & Vérifiez
+l'orthographe et ajoutez \code{\{\% load ... \%\}}. \\
+\code{Invalid filter} & Filtre inconnu ou bibliothèque non chargée. & Chargez
+\code{templatetags} avec \code{\{\% load biblio \%\}}. \\
+\code{TemplateSyntaxError} & Balise non fermée, par exemple
+\code{\{\% if \%\}} sans \code{\{\% endif \%\}}. & Fermez chaque bloc. \\
+\code{VariableDoesNotExist} & Variable absente du contexte. & Vérifiez la clé
+passée par la vue. \\
+\code{NoReverseMatch} dans un gabarit & URL mal formée. & Corrigez le nom ou
+l'argument de \code{\{\% url \%\}}. \\
+Page vide à l'endroit attendu & Nom de variable incorrect. & Comparez le contexte
+de la vue et le gabarit. \\
+\bottomrule
+\end{longtable}
+
+\section{Erreurs de modèle et de base}
+
+\begin{longtable}{L{5.2cm} L{4.5cm} L{4.7cm}}
+\toprule
+\textbf{Message} & \textbf{Cause} & \textbf{Correction} \\
+\midrule
+\endhead
+\footnotesize
+\code{no such table} & Migrations non appliquées. & Lancez \code{migrate}. \\
+\code{no such column} & Modèle modifié sans migration. & Lancez
+\code{makemigrations} puis \code{migrate}. \\
+\code{NOT NULL constraint failed} & Champ obligatoire laissé vide. & Fournissez
+une valeur ou autorisez \code{null}/\code{blank}. \\
+\code{UNIQUE constraint failed} & Doublon sur un champ unique. & Vérifiez
+l'existence avant \code{create}, ou gérez l'erreur. \\
+\code{IntegrityError} & Clé étrangère invalide (contrainte
+\code{FOREIGN KEY}). &
+Vérifiez que l'objet lié existe. \\
+\code{ProtectedError} & Suppression bloquée par \code{PROTECT}. & Supprimez
+d'abord les objets liés, ou utilisez un autre comportement. \\
+\code{DoesNotExist} & \code{get()} ne trouve rien. & Utilisez
+\code{get\_object\_or\_404} dans une vue. \\
+\code{MultipleObjectsReturned} & \code{get()} trouve plusieurs objets. & Filtrez
+sur un champ unique. \\
+\code{RelatedObjectDoesNotExist} & Profil un à un absent. & Créez le profil, ou
+testez \code{hasattr}. \\
+\bottomrule
+\end{longtable}
+
+\section{Erreurs de formulaire et de fichier}
+
+\begin{longtable}{L{5.2cm} L{4.5cm} L{4.7cm}}
+\toprule
+\textbf{Message} & \textbf{Cause} & \textbf{Correction} \\
+\midrule
+\endhead
+\footnotesize
+Formulaire toujours invalide & Champ obligatoire vide ou erreur masquée. &
+Affichez \code{form.errors} et vérifiez \code{cleaned\_data}. \\
+\code{This field is required} & Champ non rempli. & Rendez-le facultatif avec
+\code{required=False} ou corrigez la saisie. \\
+Fichier non enregistré & \code{enctype} absent ou \code{request.FILES} oublié. &
+Ajoutez \code{multipart/form-data} et le second argument. \\
+\code{Upload a valid image} & Fichier corrompu ou Pillow absent. & Vérifiez
+l'image et installez Pillow. \\
+\code{KeyError: 'champ'} dans \code{clean()} & Champ déjà invalide. & Utilisez
+\code{cleaned\_data.get}. \\
+\code{ValueError} & Conversion d'une chaîne non numérique en entier. & Testez \code{isdigit()} ou utilisez un formulaire. \\
+\bottomrule
+\end{longtable}
+
+\section{Erreurs de permission et d'authentification}
+
+\begin{longtable}{L{5.2cm} L{4.5cm} L{4.7cm}}
+\toprule
+\textbf{Message} & \textbf{Cause} & \textbf{Correction} \\
+\midrule
+\endhead
+\footnotesize
+Redirection infinie vers login & \code{LOGIN\_URL} pointe vers une vue protégée. &
+Vérifiez la route de connexion. \\
+\code{403 Forbidden} après connexion & Permission absente. & Ajoutez la permission
+au groupe ou à l'utilisateur. \\
+\code{405} à la déconnexion & Lien au lieu d'un formulaire \code{POST}. & Utilisez
+un formulaire avec \code{csrf\_token}. \\
+\code{RelatedObjectDoesNotExist} & Profil membre absent pour
+\code{user} (relation un à un). & Créez le profil
+à l'inscription, ou testez \code{hasattr}. \\
+Session perdue au redémarrage & \code{SECRET\_KEY} change ou base vidée. &
+Stabilisez la clé et conservez la base. \\
+Identifiants refusés & Nom d'utilisateur ou mot de passe invalide, ou
+compte inactif. & Vérifiez \code{is\_active} et le mot de passe. \\
+\bottomrule
+\end{longtable}
+
+\section{Erreurs de fichiers statiques}
+
+\begin{longtable}{L{5.2cm} L{4.5cm} L{4.7cm}}
+\toprule
+\textbf{Message} & \textbf{Cause} & \textbf{Correction} \\
+\midrule
+\endhead
+\footnotesize
+CSS non chargé en développement & \code{STATICFILES\_DIRS} incorrect ou
+\code{\{\% load static \%\}} absent. & Vérifiez le chemin et la balise. \\
+\code{404} sur \code{/static/} & Fichier absent ou \code{DEBUG = False}. &
+Vérifiez le fichier, ou lancez \code{--insecure} pour tester. \\
+CSS non chargé en production & \code{collectstatic} non exécuté ou Nginx mal
+configuré. & Lancez \code{collectstatic} et vérifiez l'\code{alias}. \\
+Image média inaccessible & \code{MEDIA\_URL} ou \code{MEDIA\_ROOT} incorrect. &
+Vérifiez les deux réglages et l'URL \code{static()}. \\
+Ancien CSS affiché & Cache du navigateur. & Videz le cache ou utilisez un nom
+hashé. \\
+\bottomrule
+\end{longtable}
+
+\section{Erreurs de déploiement}
+
+\begin{longtable}{L{5.2cm} L{4.5cm} L{4.7cm}}
+\toprule
+\textbf{Message} & \textbf{Cause} & \textbf{Correction} \\
+\midrule
+\endhead
+\footnotesize
+\code{500} en production, rien en local & \code{DEBUG = False} masque la trace. &
+Consultez les journaux du serveur. \\
+\code{Bad Request (400)} & \code{ALLOWED\_HOSTS} incomplet. & Ajoutez le domaine
+exact, sans \code{https://}. \\
+Fichiers statiques absents & \code{collectstatic} oublié. & Lancez la commande et
+vérifiez \code{STATIC\_ROOT}. \\
+\code{CSRF} échoue derrière un proxy & En-tête \code{X-Forwarded-Proto} non
+transmis. & Configurez Nginx et \code{SECURE\_PROXY\_SSL\_HEADER}. \\
+Connexion impossible à PostgreSQL & Identifiants ou service arrêté. & Vérifiez
+\code{DATABASES} et l'état du service. \\
+\code{Too many connections} & Fuite de connexions ou trafic élevé. & Utilisez le
+pooling et surveillez la base. \\
+\bottomrule
+\end{longtable}
+
+\begin{piege}
+Ne corrigez jamais une erreur en désactivant une protection : \code{CSRF\_COOKIE\_SECURE},
+\code{ALLOWED\_HOSTS}, les permissions ou \code{DEBUG}. Cherchez la cause réelle.
+Une protection désactivée pour \og faire marcher \fg{} devient une faille en
+production.
+\end{piege}
+
+\section{Méthode de débogage}
+
+\begin{enumerate}
+  \item Reproduire l'erreur de façon fiable.
+  \item Lire le type d'exception et la dernière ligne de la trace.
+  \item Vérifier la configuration : application installée, URL incluse, gabarit
+        présent, migration appliquée.
+  \item Ajouter un \code{print} ou un \code{breakpoint()} dans la vue pour voir
+        les valeurs.
+  \item Utiliser le shell Django pour tester la requête ORM isolément.
+  \item Réduire le problème à un cas minimal.
+  \item Écrire un test qui reproduit le bug, puis corriger.
+\end{enumerate}
+
+\begin{codebox}[python]{Inspecter une requête}
+livres = Livre.objects.filter(titre__icontains="prince")
+print(livres.query)
+print(livres.explain())
+\end{codebox}
+
+\begin{note}
+\code{str(queryset.query)} affiche le SQL généré. \code{explain()} montre le plan
+d'exécution de la base. Ces deux outils sont précieux pour comprendre une requête
+lente ou inattendue.
+\end{note}

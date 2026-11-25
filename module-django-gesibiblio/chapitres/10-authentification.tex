@@ -1,0 +1,815 @@
+% =====================================================================
+%  Chapitre 10 : Authentification
+% =====================================================================
+\chapter{L'authentification des utilisateurs}
+\label{ch:authentification}
+
+\chapitreresume{Un catalogue public se consulte sans compte. Mais emprunter un
+livre, réserver un ouvrage ou accéder à son historique demande une identité. Dans
+ce chapitre, vous utilisez le système d'authentification de Django : inscription,
+connexion, déconnexion, profil, protection des pages et gestion des sessions.}
+
+\begin{objectifs}
+\begin{itemize}
+  \item Comprendre le modèle \code{User} fourni par Django.
+  \item Activer les URL d'authentification intégrées.
+  \item Créer les gabarits de connexion et de déconnexion.
+  \item Écrire un formulaire d'inscription relié au profil \code{Membre}.
+  \item Utiliser \code{login\_required} et \code{LoginRequiredMixin}.
+  \item Rediriger l'utilisateur vers la page demandée après connexion.
+  \item Configurer les sessions et les mots de passe.
+  \item Afficher le profil et l'historique des emprunts.
+\end{itemize}
+\end{objectifs}
+
+\section{Le système d'authentification de Django}
+
+Django fournit l'application \code{django.contrib.auth}, déjà présente dans
+\code{INSTALLED\_APPS}. Elle gère :
+\begin{itemize}
+  \item les utilisateurs, avec \code{User} ;
+  \item les mots de passe, hachés avec PBKDF2 par défaut ;
+  \item les sessions, stockées en base ;
+  \item les groupes et les permissions ;
+  \item les vues de connexion, de déconnexion et de réinitialisation.
+\end{itemize}
+
+\begin{retenir}
+Django ne stocke jamais un mot de passe en clair. Il enregistre une empreinte
+calculée avec un sel. La vérification recalcule l'empreinte et compare. Même un
+administrateur de la base ne peut pas lire le mot de passe d'origine.
+\end{retenir}
+
+\subsection{Le modèle User}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{4.4cm} X}
+\toprule
+\textbf{Champ} & \textbf{Rôle} \\
+\midrule
+\code{username} & Identifiant unique. Obligatoire par défaut. \\
+\code{password} & Empreinte du mot de passe, jamais le mot de passe. \\
+\code{email} & Adresse électronique, non unique par défaut. \\
+\code{first\_name} & Prénom. \\
+\code{last\_name} & Nom. \\
+\code{is\_active} & Compte autorisé à se connecter. \\
+\code{is\_staff} & Accès à l'administration. \\
+\code{is\_superuser} & Tous les droits. \\
+\code{date\_joined} & Date de création du compte. \\
+\code{last\_login} & Dernière connexion réussie. \\
+\bottomrule
+\end{tabularx}
+\caption{Les champs principaux du modèle User.}
+\end{table}
+
+\begin{note}
+Pour un nouveau projet, Django recommande un modèle utilisateur personnalisé défini
+avant la première migration. Dans ce module, nous gardons le modèle standard : il
+suffit pour apprendre et pour le projet \gesibiblio. Le profil \code{Membre} ajoute
+les informations propres à la bibliothèque.
+\end{note}
+
+\section{Activer les URL d'authentification}
+
+Django fournit un jeu de vues prêt à l'emploi. Ajoutez cette ligne dans
+\code{gesibiblio/urls.py} :
+
+\begin{codebox}[python]{gesibiblio/urls.py}
+from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from django.urls import include, path
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("comptes/", include("django.contrib.auth.urls")),
+    path("", include("catalogue.urls")),
+]
+\end{codebox}
+
+\begin{note}
+\code{django.contrib.auth.urls} n'est pas un module de vues : c'est une liste
+d'URL. L'import \code{auth\_views} n'est utile que si vous personnalisez une vue.
+Vous pouvez retirer la ligne d'import dans la version minimale.
+\end{note}
+
+Les routes créées sont :
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{5.4cm} L{5.0cm} X}
+\toprule
+\textbf{URL} & \textbf{Nom} & \textbf{Rôle} \\
+\midrule
+\url{/comptes/login/} & \code{login} & Connexion. \\
+\url{/comptes/logout/} & \code{logout} & Déconnexion. \\
+\url{/comptes/password_change/} & \code{password\_change} & Changement de mot de
+passe. \\
+\url{/comptes/password_reset/} & \code{password\_reset} & Demande de
+réinitialisation. \\
+\url{/comptes/password_reset/done/} & \code{password\_reset\_done} & Confirmation
+d'envoi. \\
+\url{/comptes/password_reset/<uidb64>/<token>/} &
+\code{password\_reset\_confirm} & Saisie du nouveau mot de passe. \\
+\url{/comptes/password_reset/complete/} & \code{password\_reset\_complete} &
+Succès. \\
+\bottomrule
+\end{tabularx}
+\caption{URL d'authentification fournies par Django.}
+\end{table}
+
+\begin{attention}
+Sans les gabarits correspondants, ces URL provoquent une erreur
+\code{TemplateDoesNotExist}. Django cherche les fichiers dans
+\code{registration/} : \code{registration/login.html},
+\code{registration/logged\_out.html}, etc.
+\end{attention}
+
+\section{Les gabarits de connexion}
+
+\begin{codebox}[html]{templates/registration/login.html}
+{% extends "base.html" %}
+
+{% block titre %}Connexion | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <section class="formulaire">
+    <h1>Connexion</h1>
+    <p>Accédez à votre espace membre.</p>
+
+    {% if form.errors %}
+      <p class="erreur">
+        Identifiant ou mot de passe incorrect. Réessayez.
+      </p>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="champ">
+        <label for="{{ form.username.id_for_label }}">
+          Nom d'utilisateur
+        </label>
+        {{ form.username }}
+      </div>
+
+      <div class="champ">
+        <label for="{{ form.password.id_for_label }}">Mot de passe</label>
+        {{ form.password }}
+      </div>
+
+      <input type="hidden" name="next" value="{{ next }}">
+
+      <button class="bouton bouton-principal" type="submit">
+        Se connecter
+      </button>
+    </form>
+
+    <p>
+      Pas encore de compte ?
+      <a href="{% url 'catalogue:inscription' %}">Créer un compte</a>
+    </p>
+  </section>
+{% endblock %}
+\end{codebox}
+
+\begin{attention}
+Le message d'erreur reste volontairement vague : \og identifiant ou mot de passe
+incorrect \fg. Dire \og cet utilisateur n'existe pas \fg{} permettrait à un
+attaquant de découvrir les comptes valides. C'est une bonne pratique de sécurité.
+\end{attention}
+
+\subsection{La déconnexion}
+
+Depuis Django 5.0, \code{LogoutView} n'accepte que \code{POST}. Un simple lien
+renvoie une erreur \code{405}. Il faut un petit formulaire.
+
+\begin{codebox}[html]{templates/partials/navbar.html}
+<header class="entete">
+  <nav class="conteneur barre">
+    <a class="marque" href="{% url 'catalogue:accueil' %}">GesiBiblio</a>
+
+    <button class="burger" type="button" aria-expanded="false"
+            aria-controls="menu-principal">Menu</button>
+
+    <ul class="menu" id="menu-principal">
+      <li><a href="{% url 'catalogue:livre_liste' %}">Catalogue</a></li>
+
+      {% if user.is_authenticated %}
+        <li>
+          <a href="{% url 'catalogue:profil' %}">
+            {{ user.get_full_name|default:user.username }}
+          </a>
+        </li>
+        <li>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button class="lien" type="submit">Déconnexion</button>
+          </form>
+        </li>
+      {% else %}
+        <li><a href="{% url 'login' %}">Connexion</a></li>
+        <li>
+          <a class="bouton bouton-principal"
+             href="{% url 'catalogue:inscription' %}">Inscription</a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+</header>
+\end{codebox}
+
+\begin{codebox}[html]{templates/registration/logged\_out.html}
+{% extends "base.html" %}
+
+{% block titre %}Déconnecté | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <h1>Vous êtes déconnecté.</h1>
+  <p>À bientôt dans la bibliothèque.</p>
+  <a class="bouton bouton-principal"
+     href="{% url 'catalogue:accueil' %}">Retour à l'accueil</a>
+{% endblock %}
+\end{codebox}
+
+\section{Les réglages d'authentification}
+
+Ajoutez ces lignes dans \code{settings.py} :
+
+\begin{codebox}[python]{gesibiblio/settings.py, extrait}
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "catalogue:profil"
+LOGOUT_REDIRECT_URL = "catalogue:accueil"
+\end{codebox}
+
+\begin{description}[leftmargin=4.6cm,style=nextline]
+  \item[\code{LOGIN\_URL}] Nom de la route de connexion. Utilisé par
+  \code{login\_required} pour construire \code{/comptes/login/?next=...}.
+  \item[\code{LOGIN\_REDIRECT\_URL}] Page d'arrivée après connexion, si aucun
+  paramètre \code{next} n'est fourni.
+  \item[\code{LOGOUT\_REDIRECT\_URL}] Page d'arrivée après déconnexion.
+\end{description}
+
+\begin{note}
+Les valeurs sont des noms de route, pas des chemins. Django accepte aussi un chemin
+littéral, mais le nom résiste aux changements d'URL. Pour une route d'application,
+utilisez le nom complet \code{catalogue:profil}.
+\end{note}
+
+\section{Inscription et profil Membre}
+
+Le modèle \code{Membre} est lié à \code{User} par une relation un à un. À
+l'inscription, il faut créer les deux objets.
+
+\subsection{Le formulaire d'inscription}
+
+\begin{codebox}[python]{catalogue/forms.py, extrait}
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+
+
+class InscriptionForm(UserCreationForm):
+    email = forms.EmailField(
+        required=True,
+        label="Adresse électronique",
+    )
+    first_name = forms.CharField(
+        max_length=80,
+        required=True,
+        label="Prénom",
+    )
+    last_name = forms.CharField(
+        max_length=80,
+        required=True,
+        label="Nom",
+    )
+    telephone = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Téléphone",
+    )
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = (
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+        )
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError(
+                "Un compte utilise déjà cette adresse électronique."
+            )
+        return email
+\end{codebox}
+
+\begin{description}[leftmargin=5.1cm,style=nextline]
+  \item[\code{UserCreationForm}] Fournit les champs \code{username},
+  \code{password1} et \code{password2}, ainsi que la vérification de
+  correspondance.
+  \item[\code{clean\_email()}] Ajoute une unicité que le modèle \code{User}
+  n'impose pas.
+  \item[\code{lower()}] Normalise l'adresse pour éviter les doublons de casse.
+\end{description}
+
+\subsection{La vue d'inscription}
+
+\begin{codebox}[python]{catalogue/views.py, extrait}
+from django.contrib import messages
+from django.contrib.auth import login
+from django.shortcuts import redirect, render
+
+from .forms import InscriptionForm
+from .models import Membre
+
+
+def inscription(request):
+    if request.method == "POST":
+        form = InscriptionForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            Membre.objects.create(
+                user=user,
+                numero=f"M{user.pk:05d}",
+                telephone=form.cleaned_data.get("telephone", ""),
+            )
+            login(request, user)
+            messages.success(
+                request,
+                "Bienvenue ! Votre compte membre est créé.",
+            )
+            return redirect("catalogue:profil")
+    else:
+        form = InscriptionForm()
+
+    return render(
+        request,
+        "catalogue/inscription.html",
+        {"form": form},
+    )
+\end{codebox}
+
+\begin{description}[leftmargin=4.9cm,style=nextline]
+  \item[\code{form.save()}] Crée l'utilisateur et hache le mot de passe.
+  \item[\code{Membre.objects.create}] Crée le profil lié, avec un numéro
+  \code{M00042}.
+  \item[\code{login(request, user)}] Ouvre la session immédiatement après
+  l'inscription.
+  \item[\code{f"M{user.pk:05d}"}] Formate l'identifiant sur cinq chiffres.
+\end{description}
+
+\begin{attention}
+La création de l'utilisateur et celle du profil devraient être atomiques. Si la
+création du \code{Membre} échoue, l'utilisateur reste sans profil. Entourez les deux
+opérations d'un bloc \code{transaction.atomic()} :
+\end{attention}
+
+\begin{codebox}[python]{Création atomique}
+from django.db import transaction
+
+with transaction.atomic():
+    user = form.save()
+    Membre.objects.create(
+        user=user,
+        numero=f"M{user.pk:05d}",
+    )
+\end{codebox}
+
+\begin{codebox}[html]{templates/catalogue/inscription.html}
+{% extends "base.html" %}
+
+{% block titre %}Inscription | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <h1>Créer un compte</h1>
+
+  <form method="post" class="formulaire" novalidate>
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="erreur">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {% for champ in form %}
+      <div class="champ">
+        <label for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+        {{ champ }}
+        {% if champ.help_text %}
+          <p class="aide">{{ champ.help_text|safe }}</p>
+        {% endif %}
+        {% for erreur in champ.errors %}
+          <p class="erreur">{{ erreur }}</p>
+        {% endfor %}
+      </div>
+    {% endfor %}
+
+    <button class="bouton bouton-principal" type="submit">
+      Créer mon compte
+    </button>
+  </form>
+{% endblock %}
+\end{codebox}
+
+\begin{note}
+\code{help\_text|safe} est utilisé parce que \code{UserCreationForm} fournit des
+aides contenant des balises \code{<ul>}. Ce contenu vient de Django, pas de
+l'utilisateur. Ne faites jamais cela avec un texte saisi par un visiteur.
+\end{note}
+
+\subsection{La page de profil}
+
+\begin{codebox}[python]{catalogue/views.py, extrait}
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, render
+
+from .models import Membre
+
+
+@login_required
+def profil(request):
+    membre = get_object_or_404(Membre, user=request.user)
+    emprunts = (
+        membre.emprunts.select_related("livre")
+        .order_by("-date_emprunt")
+    )
+    return render(
+        request,
+        "catalogue/profil.html",
+        {"membre": membre, "emprunts": emprunts},
+    )
+\end{codebox}
+
+\begin{codebox}[html]{templates/catalogue/profil.html}
+{% extends "base.html" %}
+
+{% block titre %}Mon profil | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <h1>{{ user.get_full_name|default:user.username }}</h1>
+
+  <dl class="fiche-livre">
+    <dt>Numéro de membre</dt>
+    <dd>{{ membre.numero }}</dd>
+    <dt>Adresse électronique</dt>
+    <dd>{{ user.email }}</dd>
+    <dt>Téléphone</dt>
+    <dd>{{ membre.telephone|default:"Non renseigné" }}</dd>
+    <dt>Inscrit le</dt>
+    <dd>{{ membre.date_inscription|date:"d/m/Y" }}</dd>
+  </dl>
+
+  <h2>Mes emprunts</h2>
+
+  <table class="tableau">
+    <thead>
+      <tr>
+        <th>Livre</th>
+        <th>Emprunt</th>
+        <th>Retour prévu</th>
+        <th>Statut</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for emprunt in emprunts %}
+        <tr>
+          <td>
+            <a href="{{ emprunt.livre.get_absolute_url }}">
+              {{ emprunt.livre.titre }}
+            </a>
+          </td>
+          <td>{{ emprunt.date_emprunt|date:"d/m/Y" }}</td>
+          <td>{{ emprunt.date_retour_prevue|date:"d/m/Y" }}</td>
+          <td>
+            {% if emprunt.date_retour %}
+              Rendu le {{ emprunt.date_retour|date:"d/m/Y" }}
+            {% elif emprunt.est_en_retard %}
+              <span class="badge badge-retard">
+                En retard de {{ emprunt.duree_retard }} jour{{
+                emprunt.duree_retard|pluralize }}
+              </span>
+            {% else %}
+              <span class="badge badge-disponible">En cours</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="4">Aucun emprunt pour le moment.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
+\end{codebox}
+
+\begin{attention}
+\code{get\_object\_or\_404(Membre, user=request.user)} suppose que chaque
+utilisateur a un profil. Un superutilisateur créé avec \code{createsuperuser} n'en
+a pas. Soit vous créez le profil automatiquement, soit vous gérez l'absence avec
+\code{hasattr(request.user, "membre")}.
+\end{attention}
+
+\section{Protéger une vue}
+
+\subsection{Le décorateur login\_required}
+
+\begin{codebox}[python]{Protéger une vue fonction}
+from django.contrib.auth.decorators import login_required
+
+
+@login_required
+def profil(request):
+    ...
+\end{codebox}
+
+Si l'utilisateur n'est pas connecté, Django le redirige vers
+\code{LOGIN\_URL} avec \code{?next=/comptes/profil/}. Après connexion, la vue
+\code{LoginView} lit \code{next} et renvoie l'utilisateur à la page demandée.
+
+\begin{attention}
+Ne faites pas confiance à \code{next} sans contrôle. Django fournit
+\code{django.utils.http.url\_has\_allowed\_host\_and\_scheme} pour éviter une
+redirection ouverte vers un site externe. Les vues intégrées appliquent déjà cette
+vérification. Si vous écrivez votre propre redirection, faites de même.
+\end{attention}
+
+\subsection{Le mixin des vues de classe}
+
+\begin{codebox}[python]{Protéger une vue classe}
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import UpdateView
+
+from .models import Membre
+
+
+class ProfilUpdateView(LoginRequiredMixin, UpdateView):
+    model = Membre
+    fields = ["telephone", "adresse"]
+    template_name = "catalogue/profil_modifier.html"
+
+    def get_object(self, queryset=None):
+        return self.request.user.membre
+\end{codebox}
+
+\begin{attention}
+\code{LoginRequiredMixin} doit être placé à gauche dans l'héritage, avant la vue
+générique. L'ordre des classes compte : les méthodes de la première classe
+prennent le dessus. Un mixin placé à droite peut être ignoré.
+\end{attention}
+
+\section{Les sessions}
+
+Une session associe un identifiant stocké dans un cookie à des données conservées
+côté serveur. Django crée la session à la connexion.
+
+\begin{codebox}[python]{Manipuler la session}
+request.session["derniere_recherche"] = "prince"
+request.session.get("derniere_recherche")
+request.session.set_expiry(60 * 60 * 24 * 7)   # 7 jours
+request.session.flush()                        # tout effacer
+\end{codebox}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{5.4cm} X}
+\toprule
+\textbf{Réglage} & \textbf{Effet} \\
+\midrule
+\code{SESSION\_COOKIE\_AGE} & Durée de vie en secondes. \code{1209600} par défaut,
+soit deux semaines. \\
+\code{SESSION\_EXPIRE\_AT\_BROWSER\_CLOSE} & Ferme la session à la fermeture du
+navigateur. \\
+\code{SESSION\_COOKIE\_SECURE} & Cookie uniquement en HTTPS. À activer en
+production. \\
+\code{SESSION\_COOKIE\_HTTPONLY} & Interdit l'accès au cookie en JavaScript.
+Activé par défaut. \\
+\code{SESSION\_SAVE\_EVERY\_REQUEST} & Écrit la session à chaque requête. Coûteux,
+à laisser à \code{False}. \\
+\bottomrule
+\end{tabularx}
+\caption{Les réglages de session les plus utiles.}
+\end{table}
+
+\begin{bonne}
+En production, activez \code{SESSION\_COOKIE\_SECURE}, \code{CSRF\_COOKIE\_SECURE}
+et \code{SECURE\_SSL\_REDIRECT}. Ces réglages empêchent l'envoi des cookies en
+clair sur une connexion HTTP.
+\end{bonne}
+
+\section{Les validateurs de mot de passe}
+
+Django applique quatre validateurs par défaut :
+
+\begin{codebox}[python]{gesibiblio/settings.py, extrait}
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation"
+            ".UserAttributeSimilarityValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation"
+            ".MinimumLengthValidator"
+        ),
+        "OPTIONS": {"min_length": 9},
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation"
+            ".CommonPasswordValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation"
+            ".NumericPasswordValidator"
+        ),
+    },
+]
+\end{codebox}
+
+\begin{description}[leftmargin=5.4cm,style=nextline]
+  \item[\code{UserAttributeSimilarityValidator}] Refuse un mot de passe trop proche
+  du nom ou de l'adresse.
+  \item[\code{MinimumLengthValidator}] Impose une longueur minimale. Neuf
+  caractères est un plancher raisonnable.
+  \item[\code{CommonPasswordValidator}] Refuse les mots de passe présents dans une
+  liste de plusieurs milliers de valeurs courantes.
+  \item[\code{NumericPasswordValidator}] Refuse un mot de passe uniquement
+  numérique.
+\end{description}
+
+\begin{note}
+Une longueur minimale de neuf caractères protège mieux qu'une exigence de symboles
+compliqués, que les utilisateurs contournent en ajoutant \code{!} à la fin. Les
+phrases de passe longues sont préférables.
+\end{note}
+
+\section{Réinitialiser un mot de passe}
+
+Les vues sont déjà disponibles. Il faut fournir les gabarits et configurer l'envoi
+de courrier.
+
+\begin{codebox}[python]{gesibiblio/settings.py, extrait}
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "GesiBiblio <noreply@gesibiblio.example>"
+\end{codebox}
+
+En développement, \code{console.EmailBackend} affiche le courrier dans le terminal.
+En production, configurez un vrai serveur SMTP.
+
+\begin{codebox}[html]{templates/registration/password\_reset\_form.html}
+{% extends "base.html" %}
+
+{% block titre %}Mot de passe oublié | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <h1>Mot de passe oublié</h1>
+  <p>Saisissez votre adresse électronique. Un lien vous sera envoyé.</p>
+
+  <form method="post" class="formulaire">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button class="bouton bouton-principal" type="submit">
+      Envoyer le lien
+    </button>
+  </form>
+{% endblock %}
+\end{codebox}
+
+\begin{attention}
+La page de demande ne doit pas révéler si l'adresse existe. Django affiche le même
+message dans les deux cas. C'est volontaire : cela évite l'énumération des comptes.
+\end{attention}
+
+\section{Exercices}
+
+\begin{exercice}[ : page profil protégée]
+Vérifiez qu'un visiteur non connecté qui demande \code{/comptes/profil/} est
+redirigé vers la page de connexion, puis revient au profil après connexion.
+\end{exercice}
+
+\begin{correction}
+Ajoutez la route et le décorateur :
+
+\begin{codebox}[python]{catalogue/urls.py, extrait}
+path("comptes/profil/", views.profil, name="profil"),
+\end{codebox}
+
+\begin{codebox}[python]{catalogue/views.py, extrait}
+@login_required
+def profil(request):
+    ...
+\end{codebox}
+
+Avec \code{LOGIN\_URL = "login"}, la redirection est
+\code{/comptes/login/?next=/comptes/profil/}. Le gabarit de connexion doit contenir
+\code{<input type="hidden" name="next" value="{{ next }}">}.
+\end{correction}
+
+\begin{exercice}[ : modification du profil]
+Ajoutez une page qui permet de modifier le téléphone et l'adresse du membre
+connecté. Utilisez un \code{ModelForm} limité à ces deux champs.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[python]{catalogue/forms.py, extrait}
+class ProfilForm(forms.ModelForm):
+    class Meta:
+        model = Membre
+        fields = ["telephone", "adresse"]
+\end{codebox}
+
+\begin{codebox}[python]{catalogue/views.py, extrait}
+@login_required
+def profil_modifier(request):
+    membre = request.user.membre
+
+    if request.method == "POST":
+        form = ProfilForm(request.POST, instance=membre)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Votre profil a été mis à jour.")
+            return redirect("catalogue:profil")
+    else:
+        form = ProfilForm(instance=membre)
+
+    return render(
+        request,
+        "catalogue/profil_modifier.html",
+        {"form": form},
+    )
+\end{codebox}
+
+\begin{note}
+Ne demandez jamais le champ \code{user} dans le formulaire. Un utilisateur pourrait
+changer le propriétaire du profil. Le formulaire est limité aux champs qu'il a le
+droit de modifier.
+\end{note}
+\end{correction}
+
+\begin{exercice}[ : compteur de connexions]
+Affichez sur le profil la date de la dernière connexion et le nombre total de
+connexions. Utilisez \code{user.last\_login} et le signal \code{user\_logged\_in}
+pour incrémenter un compteur dans le profil.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[python]{catalogue/models.py, extrait}
+class Membre(models.Model):
+    # ... champs existants
+    nombre_connexions = models.PositiveIntegerField(default=0)
+\end{codebox}
+
+\begin{codebox}[python]{catalogue/signals.py}
+from django.contrib.auth.signals import user_logged_in
+from django.dispatch import receiver
+
+
+@receiver(user_logged_in)
+def compter_connexion(sender, request, user, **kwargs):
+    if hasattr(user, "membre"):
+        user.membre.nombre_connexions += 1
+        user.membre.save(update_fields=["nombre_connexions"])
+\end{codebox}
+
+Branchez le module dans \code{CatalogueConfig.ready()} :
+
+\begin{codebox}[python]{catalogue/apps.py}
+class CatalogueConfig(AppConfig):
+    # ... champs existants
+
+    def ready(self):
+        from . import signals  # noqa: F401
+\end{codebox}
+
+\begin{note}
+Le signal s'exécute à chaque connexion. Utilisez \code{update\_fields} pour ne
+écrire qu'une colonne. \code{hasattr} évite une erreur pour un superutilisateur
+sans profil.
+\end{note}
+\end{correction}
+
+\begin{retenir}
+\begin{itemize}
+  \item \code{django.contrib.auth} fournit les utilisateurs, les sessions et les
+        permissions.
+  \item \code{include("django.contrib.auth.urls")} active les vues standards.
+  \item Les gabarits vont dans \code{registration/}.
+  \item \code{login\_required} protège une vue fonction ;
+        \code{LoginRequiredMixin} protège une classe.
+  \item \code{next} ramène l'utilisateur à la page demandée.
+  \item La déconnexion se fait en \code{POST} depuis Django 5.
+  \item Les mots de passe sont hachés et validés par des validateurs.
+\end{itemize}
+\end{retenir}

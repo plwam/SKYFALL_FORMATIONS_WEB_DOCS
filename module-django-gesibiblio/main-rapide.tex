@@ -1,0 +1,44 @@
+% =====================================================================
+%  Compilation rapide d'un seul chapitre
+%
+%  Le plan gratuit d'Overleaf limite chaque compilation a 10 secondes.
+%  Le module complet depasse largement cette limite.
+%
+%  Ce fichier compile un seul chapitre, sans charger les images, pour
+%  verifier une modification en quelques secondes.
+%
+%  MODE D'EMPLOI
+%  1. Choisissez le chapitre ci-dessous (une seule ligne active).
+%  2. Sur Overleaf : icone Reglages (roue dentee) > Compiler >
+%     Main document > main-rapide.tex. Puis Recompile.
+%  3. Pour afficher les images, remplacez "draft" par "final".
+%
+%  Le numero affiche peut differer du numero reel : ce fichier sert a
+%  relire et corriger, pas a produire le document final.
+% =====================================================================
+\documentclass[11pt,a4paper,oneside,draft]{book}
+
+\input{preamble}
+
+% Chapitre a compiler : laissez une seule ligne active.
+\newcommand{\chapitrecompile}{chapitres/06-modeles}
+% \newcommand{\chapitrecompile}{chapitres/00-introduction}
+% \newcommand{\chapitrecompile}{chapitres/01-structure-projet}
+% \newcommand{\chapitrecompile}{chapitres/02-creation-app}
+% \newcommand{\chapitrecompile}{chapitres/03-gabarits}
+% \newcommand{\chapitrecompile}{chapitres/04-fichiers-statiques}
+% \newcommand{\chapitrecompile}{chapitres/05-balises-filtres}
+% \newcommand{\chapitrecompile}{chapitres/07-requetes}
+% \newcommand{\chapitrecompile}{chapitres/08-admin}
+% \newcommand{\chapitrecompile}{chapitres/09-formulaires}
+% \newcommand{\chapitrecompile}{chapitres/10-authentification}
+% \newcommand{\chapitrecompile}{chapitres/11-permissions}
+% \newcommand{\chapitrecompile}{chapitres/12-conclusion}
+% Pour une annexe :
+% \newcommand{\chapitrecompile}{annexes/C-erreurs-frequentes}
+% \newcommand{\chapitrecompile}{annexes/D-donnees-demonstration}
+
+\begin{document}
+\mainmatter
+\input{\chapitrecompile}
+\end{document}

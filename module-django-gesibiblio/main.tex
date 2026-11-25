@@ -1,0 +1,43 @@
+% =====================================================================
+%  Initiation au developpement web avec Django
+%  Projet fil rouge : GesiBiblio
+%  Auteur : LWANZO PATERNE
+%  Formation propulsee par GESITECHNOLOGIES
+%
+%  Compilation : XeLaTeX ou pdfLaTeX
+%  Sur Overleaf : Menu, Compiler, choisir XeLaTeX ou pdfLaTeX,
+%  puis compiler deux fois pour la table des matieres.
+% =====================================================================
+\documentclass[11pt,a4paper,oneside]{book}
+
+\input{preamble}
+
+\begin{document}
+
+\frontmatter
+\input{pages/garde}
+\tableofcontents
+\input{pages/avant-propos}
+
+\mainmatter
+\input{chapitres/00-introduction}
+\input{chapitres/01-structure-projet}
+\input{chapitres/02-creation-app}
+\input{chapitres/03-gabarits}
+\input{chapitres/04-fichiers-statiques}
+\input{chapitres/05-balises-filtres}
+\input{chapitres/06-modeles}
+\input{chapitres/07-requetes}
+\input{chapitres/08-admin}
+\input{chapitres/09-formulaires}
+\input{chapitres/10-authentification}
+\input{chapitres/11-permissions}
+\input{chapitres/12-conclusion}
+
+\appendix
+\input{annexes/A-installation}
+\input{annexes/B-aide-memoire}
+\input{annexes/C-erreurs-frequentes}
+\input{annexes/D-donnees-demonstration}
+
+\end{document}

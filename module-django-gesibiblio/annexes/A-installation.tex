@@ -1,0 +1,293 @@
+% =====================================================================
+%  Annexe A : Installation pas a pas
+% =====================================================================
+\chapter{Installation pas à pas}
+\label{ann:installation}
+
+\chapitreresume{Cette annexe reprend l'installation complète, du téléchargement de
+Python à la première page du projet, avec les commandes pour Windows, macOS et
+Linux, ainsi que les solutions aux problèmes les plus courants.}
+
+\section{Installer Python}
+
+\subsection{Windows}
+
+\begin{enumerate}
+  \item Téléchargez Python 3.12 sur \url{https://www.python.org/downloads/}.
+  \item Lancez l'installateur.
+  \item Cochez \og Add python.exe to PATH \fg{} avant de cliquer sur
+        \og Install Now \fg.
+  \item À la fin, ouvrez PowerShell et vérifiez :
+\end{enumerate}
+
+\begin{terminal}
+python --version
+python -m pip --version
+\end{terminal}
+
+\begin{attention}
+Sous Windows, \code{python} peut ouvrir le Microsoft Store si Python n'est pas
+installé. Tapez \code{py --version} pour vérifier. Si la commande \code{py}
+fonctionne mais pas \code{python}, utilisez \code{py} partout dans ce module, ou
+réinstallez Python en cochant l'option PATH.
+\end{attention}
+
+\subsection{macOS}
+
+\begin{terminal}
+brew install python@3.12
+python3 --version
+\end{terminal}
+
+\begin{note}
+macOS fournit parfois une version ancienne de Python. Utilisez \code{python3} et
+\code{pip3} pour éviter les confusions. Homebrew installe une version à jour.
+\end{note}
+
+\subsection{Linux (Debian, Ubuntu)}
+
+\begin{terminal}
+sudo apt update
+sudo apt install python3 python3-venv python3-pip
+python3 --version
+\end{terminal}
+
+Sur Fedora ou Red Hat, remplacez \code{apt} par \code{dnf}. Sur Arch,
+\code{pacman -S python}.
+
+\section{Créer l'environnement virtuel}
+
+Un environnement virtuel isole les paquets du projet. Chaque projet peut avoir sa
+propre version de Django sans conflit.
+
+\begin{terminal}
+mkdir gesibiblio
+cd gesibiblio
+python -m venv .venv
+\end{terminal}
+
+Activez-le :
+
+\begin{terminal}
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+
+# Windows cmd
+.venv\Scripts\activate.bat
+
+# macOS et Linux
+source .venv/bin/activate
+\end{terminal}
+
+Le prompt affiche \code{(.venv)} au début. C'est le signe que l'environnement est
+actif.
+
+\begin{attention}
+Sous PowerShell, l'activation peut être bloquée par la politique d'exécution. Dans
+ce cas, ouvrez PowerShell en administrateur et lancez :
+\code{Set-ExecutionPolicy -Scope CurrentUser RemoteSigned}. Fermez puis rouvrez le
+terminal.
+\end{attention}
+
+\begin{bonne}
+Ne versionnez jamais le dossier \code{.venv/}. Ajoutez-le à \code{.gitignore}. Un
+nouveau développeur recrée son environnement avec \code{requirements.txt}.
+\end{bonne}
+
+\section{Installer Django et Pillow}
+
+\begin{terminal}
+python -m pip install --upgrade pip
+python -m pip install "Django==5.2" Pillow
+python -m django --version
+\end{terminal}
+
+Pillow est nécessaire pour \code{ImageField}. Sans lui, Django refuse de démarrer
+dès qu'un modèle contient une image.
+
+\begin{terminal}
+5.2
+\end{terminal}
+
+\begin{note}
+Les guillemets autour de \code{"Django==5.2"} évitent que le shell interprète les
+signes égal. Sous PowerShell, les guillemets sont recommandés.
+\end{note}
+
+\section{Créer le projet}
+
+\begin{terminal}
+django-admin startproject gesibiblio .
+\end{terminal}
+
+Le point final est important : il crée les fichiers dans le dossier courant au lieu
+de créer un sous-dossier \code{gesibiblio/gesibiblio/}.
+
+Vérifiez l'arborescence :
+
+\begin{codebox}[tree]{Après startproject}
+.
+|-- manage.py
+`-- gesibiblio/
+    |-- __init__.py
+    |-- settings.py
+    |-- urls.py
+    |-- asgi.py
+    `-- wsgi.py
+\end{codebox}
+
+Lancez le serveur :
+
+\begin{terminal}
+python manage.py runserver
+\end{terminal}
+
+Ouvrez \code{http://127.0.0.1:8000/}. La fusée de Django s'affiche. Le projet
+fonctionne.
+
+\section{Les premiers réglages}
+
+\begin{codebox}[python]{gesibiblio/settings.py, extraits}
+LANGUAGE_CODE = "fr-fr"
+TIME_ZONE = "Africa/Douala"
+USE_I18N = True
+USE_TZ = True
+\end{codebox}
+
+\begin{description}[leftmargin=4.3cm,style=nextline]
+  \item[\code{LANGUAGE\_CODE}] Langue de l'interface d'administration et des
+  messages.
+  \item[\code{TIME\_ZONE}] Fuseau horaire. Adaptez-le à votre public.
+  \item[\code{USE\_I18N}] Active la traduction.
+  \item[\code{USE\_TZ}] Stocke les dates en UTC et les convertit à l'affichage.
+\end{description}
+
+\begin{bonne}
+Laissez \code{USE\_TZ = True}. Les dates sont stockées en UTC, ce qui évite les
+ambiguïtés lors des changements d'heure. Utilisez \code{timezone.localdate()} dans
+le code plutôt que \code{datetime.date.today()}.
+\end{bonne}
+
+\section{Initialiser la base}
+
+\begin{terminal}
+python manage.py migrate
+\end{terminal}
+
+Cette commande crée les tables des applications intégrées : utilisateurs, sessions,
+permissions, administration. Elle crée aussi le fichier \code{db.sqlite3}.
+
+\begin{terminal}
+python manage.py createsuperuser
+\end{terminal}
+
+\section{Configurer Visual Studio Code}
+
+Extensions recommandées :
+\begin{itemize}
+  \item Python (Microsoft) ;
+  \item Pylance ;
+  \item Django (Baptiste Darthenay) pour la coloration des gabarits ;
+  \item SQLite Viewer pour inspecter la base ;
+  \item Even Better TOML, utile pour la configuration.
+\end{itemize}
+
+Sélectionnez l'interpréteur de l'environnement virtuel : \code{Ctrl+Shift+P}, puis
+\og Python: Select Interpreter \fg, et choisissez \code{.venv}.
+
+\begin{codebox}[tree]{.vscode/settings.json}
+{
+  "python.defaultInterpreterPath": ".venv/Scripts/python.exe",
+  "editor.formatOnSave": true,
+  "files.exclude": {
+    "**/__pycache__": true
+  }
+}
+\end{codebox}
+
+Sous macOS et Linux, le chemin est \code{.venv/bin/python}.
+
+\section{Installer Git}
+
+\begin{terminal}
+git init
+git add .
+git commit -m "Projet Django initial"
+\end{terminal}
+
+Créez un dépôt distant sur GitHub ou GitLab, puis :
+
+\begin{terminal}
+git remote add origin https://github.com/utilisateur/gesibiblio.git
+git push -u origin main
+\end{terminal}
+
+\begin{attention}
+Avant le premier commit, vérifiez que \code{.gitignore} exclut \code{.venv/},
+\code{db.sqlite3}, \code{.env} et \code{media/}. Un secret poussé sur GitHub reste
+dans l'historique, même après suppression du fichier.
+\end{attention}
+
+\section{Problèmes fréquents}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{5.1cm} X}
+\toprule
+\textbf{Message} & \textbf{Solution} \\
+\midrule
+\code{'python' n'est pas reconnu} & Python n'est pas dans le PATH. Réinstallez en
+cochant l'option, ou utilisez \code{py}. \\
+\code{No module named django} & L'environnement virtuel n'est pas activé, ou Django
+n'est pas installé. Activez \code{.venv} et relancez \code{pip install}. \\
+\code{Activate.ps1 cannot be loaded} & Politique PowerShell. Exécutez
+\code{Set-ExecutionPolicy -Scope CurrentUser RemoteSigned}. \\
+\code{Port 8000 is already in use} & Un autre serveur tourne. Lancez
+\code{runserver 8001} ou arrêtez le processus. \\
+\code{ModuleNotFoundError: catalogue} & L'application n'est pas dans
+\code{INSTALLED\_APPS}, ou \code{startapp} n'a pas été lancé au bon endroit. \\
+\code{TemplateDoesNotExist} & Chemin de gabarit incorrect, ou
+\code{TEMPLATES} mal configuré. \\
+\code{NoReverseMatch} & Nom de route inconnu, ou paramètre manquant. \\
+\code{OperationalError: no such table} & Les migrations n'ont pas été appliquées.
+Lancez \code{migrate}. \\
+\code{CSRF verification failed} & \code{\{\% csrf\_token \%\}} manquant dans le
+formulaire. \\
+\code{DisallowedHost} & Ajoutez le domaine à \code{ALLOWED\_HOSTS}. \\
+\bottomrule
+\end{tabularx}
+\caption{Erreurs d'installation et solutions.}
+\end{table}
+
+\begin{piege}
+Beaucoup d'erreurs viennent d'un environnement virtuel oublié. Avant de chercher
+une cause compliquée, vérifiez que le prompt contient \code{(.venv)} et que
+\code{which python} (ou \code{where python} sous Windows) pointe vers le dossier du
+projet.
+\end{piege}
+
+\section{Récapitulatif des commandes}
+
+\begin{codebox}[bash]{Cycle de travail quotidien}
+# Activer l'environnement
+.\.venv\Scripts\Activate.ps1     # Windows
+source .venv/bin/activate         # macOS et Linux
+
+# Lancer le serveur
+python manage.py runserver
+
+# Après une modification de modèle
+python manage.py makemigrations
+python manage.py migrate
+
+# Vérifier le projet
+python manage.py check
+python manage.py test
+
+# Créer un compte administrateur
+python manage.py createsuperuser
+
+# Ouvrir un shell Python connecté à Django
+python manage.py shell
+\end{codebox}

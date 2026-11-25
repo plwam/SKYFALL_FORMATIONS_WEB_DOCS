@@ -1,0 +1,416 @@
+% =====================================================================
+%  Chapitre 2 : Creation d'une application
+% =====================================================================
+\chapter{Créer une application Django}
+\label{ch:app}
+
+\chapitreresume{Un projet Django est composé d'applications. Dans ce chapitre,
+vous créez l'application \code{catalogue}, vous découvrez le rôle de ses fichiers
+et vous affichez votre première page web. Vous comprenez aussi comment une URL est
+associée à une vue et comment Django renvoie une réponse au navigateur.}
+
+\begin{objectifs}
+\begin{itemize}
+  \item Distinguer un projet Django d'une application Django.
+  \item Créer une application avec \code{startapp}.
+  \item Enregistrer l'application dans \code{INSTALLED\_APPS}.
+  \item Écrire une première vue et la relier à une URL.
+  \item Utiliser \code{include}, \code{app\_name} et les noms d'URL.
+  \item Tester le résultat dans le navigateur.
+\end{itemize}
+\end{objectifs}
+
+\section{Projet et application : quelle différence ?}
+
+Un \textbf{projet} est l'ensemble du site : sa configuration, ses réglages, ses
+URL racines. Une \textbf{application} est un module qui remplit une responsabilité
+précise : catalogue, comptes, emprunts, paiements, blog, etc.
+
+\begin{retenir}
+Un projet contient plusieurs applications. Une application peut être réutilisée
+dans plusieurs projets. Le projet \gesibiblio{} contiendra au minimum une
+application \code{catalogue}, chargée des livres, des auteurs, des catégories et
+des emprunts. Les comptes utilisateurs s'appuieront sur l'application
+\code{django.contrib.auth} fournie par Django.
+\end{retenir}
+
+Au début, il est tentant de tout mettre dans une seule application géante. C'est
+une mauvaise habitude. Une application doit rester cohérente : si vous devez
+expliquer son rôle en une phrase, c'est bon signe. \code{catalogue} gère le
+catalogue et les prêts. Plus tard, vous pourriez ajouter \code{blog},
+\code{facturation} ou \code{notifications} sans toucher au catalogue.
+
+\section{Créer l'application catalogue}
+
+Placez-vous dans le dossier qui contient \code{manage.py}, activez
+l'environnement virtuel, puis lancez :
+
+\begin{terminal}
+python manage.py startapp catalogue
+\end{terminal}
+
+Django crée le dossier \code{catalogue/} avec les fichiers suivants :
+
+\begin{codebox}[tree]{Arborescence de l'application}
+catalogue/
+|-- __init__.py
+|-- admin.py
+|-- apps.py
+|-- migrations/
+|   `-- __init__.py
+|-- models.py
+|-- tests.py
+`-- views.py
+\end{codebox}
+
+\begin{note}
+\code{startapp} ne crée pas de fichier \code{urls.py}. C'est volontaire : toutes
+les applications n'ont pas besoin d'URL propres. Nous allons le créer à la main
+pour garder un routage clair.
+\end{note}
+
+\section{Le rôle de chaque fichier de l'application}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{3.6cm} X}
+\toprule
+\textbf{Fichier} & \textbf{Rôle} \\
+\midrule
+\code{\_\_init\_\_.py} & Transforme le dossier en paquet Python. Il reste vide. \\
+\code{admin.py} & Enregistre les modèles dans l'interface d'administration. \\
+\code{apps.py} & Configuration de l'application : nom, libellé, éventuels
+branchements au démarrage. \\
+\code{models.py} & Définit les modèles de données, c'est-à-dire les tables et
+leurs relations. \\
+\code{views.py} & Contient les vues, les fonctions qui reçoivent les requêtes et
+renvoient les réponses. \\
+\code{tests.py} & Contient les tests automatisés de l'application. \\
+\code{migrations/} & Historique des modifications du schéma de base de données. \\
+\code{urls.py} & À créer : table de routage propre à l'application. \\
+\bottomrule
+\end{tabularx}
+\caption{Rôle des fichiers d'une application Django.}
+\end{table}
+
+\subsection{apps.py}
+
+\begin{codebox}[python]{catalogue/apps.py}
+from django.apps import AppConfig
+
+
+class CatalogueConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "catalogue"
+    verbose_name = "Catalogue"
+\end{codebox}
+
+\code{AppConfig} décrit l'application pour Django. Le champ \code{name} doit
+correspondre exactement au nom du paquet Python. \code{verbose\_name} est le nom
+affiché dans l'administration.
+
+\section{Enregistrer l'application}
+
+Une application n'est active que si elle figure dans la liste des applications
+installées. Ouvrez le fichier de réglages du projet et ajoutez la ligne suivante
+à la fin de cette liste :
+
+\begin{codebox}[python]{gesibiblio/settings.py, extrait}
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "catalogue.apps.CatalogueConfig",
+]
+\end{codebox}
+
+Vous pouvez aussi écrire simplement \code{"catalogue"}. Django retrouvera la
+classe \code{CatalogueConfig} grâce à la convention de nommage. La forme complète
+est plus explicite et permet de personnaliser le libellé.
+
+\begin{attention}
+Si vous oubliez d'enregistrer l'application, Django ne verra ni ses modèles, ni
+ses gabarits, ni ses fichiers statiques. Les erreurs du type \code{No installed
+app with label 'catalogue'} viennent presque toujours de là.
+\end{attention}
+
+\section{Première vue}
+
+Une vue est une fonction Python qui reçoit un objet \code{request} et renvoie un
+objet \code{response}. Pour commencer simplement, nous allons renvoyer du HTML
+brut avec \code{HttpResponse}.
+
+\begin{codebox}[python]{catalogue/views.py}
+from django.http import HttpResponse
+
+
+def accueil(request):
+    return HttpResponse(
+        "<h1>Bienvenue dans GesiBiblio</h1>"
+        "<p>La bibliothèque ouvre bientôt ses portes.</p>"
+    )
+\end{codebox}
+
+\begin{description}[leftmargin=3.1cm,style=nextline]
+  \item[\code{request}] Représente la requête HTTP. Il contient la méthode, l'URL,
+  les paramètres, l'utilisateur connecté, les cookies, etc. Même si nous ne
+  l'utilisons pas encore, il doit toujours être présent dans la signature.
+  \item[\code{HttpResponse}] Représente la réponse HTTP. Le premier argument est
+  le corps de la réponse, ici une chaîne HTML. Django ajoute automatiquement les
+  en-têtes et le code de statut \code{200}.
+\end{description}
+
+\begin{note}
+Écrire du HTML dans une vue est utile pour comprendre le mécanisme, mais ce n'est
+pas une bonne pratique. Dès le chapitre suivant, nous utiliserons des gabarits
+pour séparer la présentation de la logique.
+\end{note}
+
+\section{Relier une URL à la vue}
+
+Créez le fichier \code{catalogue/urls.py} :
+
+\begin{codebox}[python]{catalogue/urls.py}
+from django.urls import path
+from . import views
+
+app_name = "catalogue"
+
+urlpatterns = [
+    path("", views.accueil, name="accueil"),
+]
+\end{codebox}
+
+Puis modifiez le fichier \code{gesibiblio/urls.py} pour inclure ces URL :
+
+\begin{codebox}[python]{gesibiblio/urls.py}
+from django.contrib import admin
+from django.urls import include, path
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("", include("catalogue.urls")),
+]
+\end{codebox}
+
+\subsection{Comprendre path et include}
+
+\begin{description}[leftmargin=3.1cm,style=nextline]
+  \item[\code{path("", vue, name="...")}] Associe une URL à une vue. Ici, la
+  chaîne vide correspond à la racine du site. Le nom \code{accueil} permet de
+  construire l'URL dans les gabarits et dans le code Python.
+  \item[\code{include("catalogue.urls")}] Délègue le routage à l'application. Toute
+  URL non consommée par les routes précédentes est cherchée dans
+  \code{catalogue/urls.py}. C'est ce qui rend les applications autonomes.
+  \item[\code{app\_name = "catalogue"}] Crée un espace de noms. Le nom complet de
+  la route devient \code{catalogue:accueil}. Deux applications peuvent ainsi avoir
+  une route \code{accueil} sans se marcher dessus.
+\end{description}
+
+\begin{bonne}
+Nommez toujours vos routes. Une URL codée en dur dans un gabarit casse dès que le
+chemin change. \lstinline|{% url 'catalogue:accueil' %}| résiste aux modifications
+et signale les erreurs à la compilation des gabarits.
+\end{bonne}
+
+\section{Tester la page}
+
+Relancez le serveur :
+
+\begin{terminal}
+python manage.py runserver
+\end{terminal}
+
+Ouvrez \code{http://127.0.0.1:8000/}. Vous devez voir :
+
+\begin{quote}
+\og Bienvenue dans GesiBiblio \fg\\
+\og La bibliothèque ouvre bientôt ses portes. \fg
+\end{quote}
+
+Le navigateur affiche le HTML brut, sans mise en forme. C'est normal : nous
+n'avons pas encore de feuille de style.
+
+\begin{attention}
+Si vous obtenez une erreur \code{TemplateDoesNotExist}, c'est que vous avez déjà
+ajouté un appel à \code{render} sans créer le gabarit. Si vous obtenez
+\code{Page not found}, vérifiez l'ordre des \code{path} et le contenu de
+\code{urlpatterns}. Si vous obtenez \code{ModuleNotFoundError}, vérifiez que
+l'application est bien dans \code{INSTALLED\_APPS} et que le dossier contient
+\code{\_\_init\_\_.py}.
+\end{attention}
+
+\section{Ajouter une deuxième page}
+
+Pour voir la mécanique en action, ajoutons une page \og À propos \fg.
+
+\begin{codebox}[python]{catalogue/views.py}
+from django.http import HttpResponse
+
+
+def accueil(request):
+    return HttpResponse(
+        "<h1>Bienvenue dans GesiBiblio</h1>"
+        "<p>La bibliothèque ouvre bientôt ses portes.</p>"
+    )
+
+
+def a_propos(request):
+    return HttpResponse(
+        "<h1>À propos de GesiBiblio</h1>"
+        "<p>Un projet de bibliothèque réalisé avec Django.</p>"
+    )
+\end{codebox}
+
+\begin{codebox}[python]{catalogue/urls.py}
+from django.urls import path
+from . import views
+
+app_name = "catalogue"
+
+urlpatterns = [
+    path("", views.accueil, name="accueil"),
+    path("a-propos/", views.a_propos, name="a_propos"),
+]
+\end{codebox}
+
+Visitez \code{http://127.0.0.1:8000/a-propos/}. La page s'affiche.
+
+\begin{note}
+L'URL se termine par une barre oblique. Django peut ajouter automatiquement cette
+barre grâce au réglage \code{APPEND\_SLASH}, activé par défaut. Prenez l'habitude
+d'écrire des URL cohérentes, avec une barre finale.
+\end{note}
+
+\section{Le cycle requête réponse}
+
+Voici ce qui se passe lorsque vous demandez \code{/a-propos/} :
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{C{1.1cm} L{4.1cm} X}
+\toprule
+\textbf{\#} & \textbf{Composant} & \textbf{Action} \\
+\midrule
+1 & Navigateur & Envoie une requête \code{GET /a-propos/}. \\
+2 & Middlewares & Ajoutent la session, l'utilisateur, la protection CSRF. \\
+3 & \code{gesibiblio/urls.py} & Ne reconnaît pas \code{admin/}, délègue à
+\code{catalogue.urls}. \\
+4 & \code{catalogue/urls.py} & Reconnaît \code{a-propos/} et appelle
+\code{a\_propos}. \\
+5 & Vue & Reçoit \code{request}, prépare la réponse. \\
+6 & \code{HttpResponse} & Renvoie le HTML avec le statut \code{200}. \\
+7 & Navigateur & Affiche le corps de la réponse. \\
+\bottomrule
+\end{tabularx}
+\caption{Trajet d'une requête vers la page \og À propos \fg.}
+\end{table}
+
+\begin{retenir}
+Une URL n'est pas un fichier. C'est une route décrite dans \code{urls.py}. Le
+serveur ne cherche pas \code{a-propos.html} sur le disque : il appelle la fonction
+\code{a\_propos}, qui construit la réponse.
+\end{retenir}
+
+\section{Bonnes pratiques}
+
+\begin{bonne}
+\begin{itemize}
+  \item Une application, une responsabilité claire.
+  \item Un fichier \code{urls.py} par application, inclus depuis le routeur racine.
+  \item Un \code{app\_name} et des noms de routes explicites.
+  \item Des URL en minuscules, avec des tirets, et une barre finale.
+  \item Des vues courtes : la logique métier lourde va dans les modèles, les
+        formulaires ou des services dédiés.
+  \item Pas de HTML dans les vues : utilisez des gabarits dès que possible.
+\end{itemize}
+\end{bonne}
+
+\begin{piege}
+Deux erreurs classiques débutent par la même confusion : \code{include} ne
+fonctionne que si le module cible expose une variable \code{urlpatterns}, et
+\code{app\_name} doit être identique au préfixe utilisé dans
+\lstinline|{% url 'catalogue:...' %}|. Vérifiez ces deux points avant de chercher
+ailleurs.
+\end{piege}
+
+\section{Exercices}
+
+\begin{exercice}[ : page de contact]
+Ajoutez une page \code{/contact/} qui affiche une adresse électronique et les
+horaires d'ouverture de la bibliothèque. Donnez-lui le nom de route
+\code{contact}.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[python]{catalogue/views.py, extrait}
+def contact(request):
+    return HttpResponse(
+        "<h1>Contact</h1>"
+        "<p>Écrivez-nous à contact@gesibiblio.example.</p>"
+        "<p>Ouvert du lundi au samedi, de 9 h à 18 h.</p>"
+    )
+\end{codebox}
+
+\begin{codebox}[python]{catalogue/urls.py, extrait}
+path("contact/", views.contact, name="contact"),
+\end{codebox}
+
+Vérifiez ensuite \code{http://127.0.0.1:8000/contact/}.
+\end{correction}
+
+\begin{exercice}[ : lien entre les pages]
+Ajoutez un lien vers la page \og À propos \fg{} sur la page d'accueil, puis un lien
+de retour vers l'accueil sur la page \og À propos \fg. Utilisez les noms de routes
+dans le HTML.
+\end{exercice}
+
+\begin{correction}
+Dans une vue qui renvoie du HTML brut, on peut utiliser \code{reverse} :
+
+\begin{codebox}[python]{catalogue/views.py, extrait}
+from django.urls import reverse
+
+
+def accueil(request):
+    lien = reverse("catalogue:a_propos")
+    return HttpResponse(
+        "<h1>Bienvenue dans GesiBiblio</h1>"
+        f'<p><a href="{lien}">En savoir plus</a></p>'
+    )
+\end{codebox}
+
+Dans un vrai gabarit, la balise \lstinline|{% url 'catalogue:a_propos' %}| est
+plus lisible. Nous la verrons au chapitre suivant.
+\end{correction}
+
+\begin{exercice}[ : comprendre les noms]
+Expliquez la différence entre \code{path("livres/", ...)} et
+\code{path("livres/", ..., name="livre\_liste")}. Pourquoi le nom est-il utile ?
+\end{exercice}
+
+\begin{correction}
+Le premier argument est le motif d'URL reconnu par le navigateur. Le nom
+\code{livre\_liste} est un identifiant interne. Il permet de construire l'URL avec
+\code{reverse("catalogue:livre\_liste")} ou
+\lstinline|{% url 'catalogue:livre_liste' %}|. Si le chemin change demain, seul
+\code{urls.py} est modifié : les gabarits et le code continuent de fonctionner.
+\end{correction}
+
+\begin{retenir}
+\begin{itemize}
+  \item Un projet contient des applications ; une application contient des vues,
+        des modèles, des gabarits et des URL.
+  \item \code{startapp} crée la structure de l'application ; il faut l'enregistrer
+        dans \code{INSTALLED\_APPS}.
+  \item Une vue reçoit \code{request} et renvoie une réponse.
+  \item \code{include} délègue le routage à une application.
+  \item \code{app\_name} et \code{name} permettent de nommer les routes.
+  \item Le HTML brut est utile pour apprendre, mais les gabarits arrivent vite.
+\end{itemize}
+\end{retenir}

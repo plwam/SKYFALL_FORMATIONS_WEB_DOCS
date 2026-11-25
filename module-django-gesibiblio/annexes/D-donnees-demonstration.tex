@@ -1,0 +1,362 @@
+% =====================================================================
+%  Annexe D : Donnees de demonstration
+% =====================================================================
+\chapter{Données de démonstration}
+\label{ann:donnees}
+
+\chapitreresume{Pour tester le catalogue sans tout saisir à la main, cette annexe
+fournit une commande de gestion qui crée des auteurs, des catégories, des livres,
+des membres et des emprunts. Elle crée aussi deux comptes de démonstration et
+explique comment réinitialiser les données.}
+
+\section{La commande de démonstration}
+
+Créez l'arborescence :
+
+\begin{codebox}[tree]{Arborescence de la commande}
+catalogue/
+`-- management/
+    |-- __init__.py
+    `-- commands/
+        |-- __init__.py
+        `-- donnees_demo.py
+\end{codebox}
+
+\begin{codebox}[python]{catalogue/management/commands/donnees\_demo.py}
+from datetime import date, timedelta
+
+from django.contrib.auth.models import Group, User
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+
+from catalogue.models import (
+    Auteur,
+    Categorie,
+    Emprunt,
+    Livre,
+    Membre,
+)
+
+AUTEURS = [
+    ("Antoine", "Saint-Exupéry", 1900),
+    ("Mariama", "Bâ", 1929),
+    ("Albert", "Camus", 1913),
+    ("Chinua", "Achebe", 1930),
+    ("Ahmadou", "Kourouma", 1927),
+]
+
+CATEGORIES = [
+    ("Roman", "roman", "Fictions longues et récits."),
+    ("Jeunesse", "jeunesse", "Albums et romans pour les jeunes."),
+    ("Poésie", "poesie", "Recueils et textes poétiques."),
+    ("Afrique", "afrique", "Littératures africaines."),
+    ("Histoire", "histoire", "Essais et ouvrages historiques."),
+]
+
+LIVRES = [
+    (
+        "Le Petit Prince",
+        "le-petit-prince",
+        "9782070612758",
+        "Antoine",
+        "Saint-Exupéry",
+        1943,
+        3,
+        ["Jeunesse", "Roman"],
+        "Un aviateur rencontre un petit prince venu d'une autre planète.",
+    ),
+    (
+        "Une si longue lettre",
+        "une-si-longue-lettre",
+        "9782264030305",
+        "Mariama",
+        "Bâ",
+        1979,
+        2,
+        ["Roman", "Afrique"],
+        "Une lettre qui raconte la vie de femmes sénégalaises.",
+    ),
+    (
+        "L'Étranger",
+        "l-etranger",
+        "9782070360024",
+        "Albert",
+        "Camus",
+        1942,
+        2,
+        ["Roman"],
+        "Meursault raconte un fait divers sous le soleil d'Alger.",
+    ),
+    (
+        "Le Monde s'effondre",
+        "le-monde-s-effondre",
+        "9782264030831",
+        "Chinua",
+        "Achebe",
+        1958,
+        1,
+        ["Roman", "Afrique"],
+        "Le destin d'Okonkwo dans un village igbo en mutation.",
+    ),
+    (
+        "Les Soleils des indépendances",
+        "les-soleils-des-independances",
+        "9782020028010",
+        "Ahmadou",
+        "Kourouma",
+        1968,
+        1,
+        ["Roman", "Afrique"],
+        "Fama, prince déchu, traverse les indépendances.",
+    ),
+]
+
+
+class Command(BaseCommand):
+    help = "Crée un jeu de données de démonstration pour GesiBiblio."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--reset",
+            action="store_true",
+            help="Supprime les emprunts et les livres de démonstration.",
+        )
+
+    def handle(self, *args, **options):
+        if options["reset"]:
+            self.reset()
+
+        auteurs = {}
+        for prenom, nom, naissance in AUTEURS:
+            auteur, _ = Auteur.objects.get_or_create(
+                prenom=prenom,
+                nom=nom,
+                defaults={
+                    "date_naissance": date(naissance, 1, 1),
+                },
+            )
+            auteurs[nom] = auteur
+
+        categories = {}
+        for nom, slug, description in CATEGORIES:
+            categorie, _ = Categorie.objects.get_or_create(
+                slug=slug,
+                defaults={"nom": nom, "description": description},
+            )
+            categories[nom] = categorie
+
+        for (
+            titre,
+            slug,
+            isbn,
+            prenom,
+            nom,
+            annee,
+            exemplaires,
+            noms_categories,
+            resume,
+        ) in LIVRES:
+            livre, cree = Livre.objects.get_or_create(
+                slug=slug,
+                defaults={
+                    "titre": titre,
+                    "isbn": isbn,
+                    "auteur": auteurs[nom],
+                    "annee_publication": annee,
+                    "nombre_exemplaires": exemplaires,
+                    "resume": resume,
+                },
+            )
+            if cree:
+                livre.categories.set(
+                    [categories[n] for n in noms_categories]
+                )
+                self.stdout.write(f"  + {livre.titre}")
+
+        membres = self.creer_membres()
+        self.creer_emprunts(membres)
+
+        self.stdout.write(
+            self.style.SUCCESS("Données de démonstration prêtes.")
+        )
+
+    def creer_membres(self):
+        membres = []
+        for numero, username, prenom, nom in [
+            ("M00001", "lecteur1", "Awa", "Ndiaye"),
+            ("M00002", "lecteur2", "Kofi", "Mensah"),
+        ]:
+            user, cree = User.objects.get_or_create(
+                username=username,
+                defaults={
+                    "first_name": prenom,
+                    "last_name": nom,
+                    "email": f"{username}@example.com",
+                },
+            )
+            if cree:
+                user.set_password("Demonstration2026!")
+                user.save()
+
+            membre, _ = Membre.objects.get_or_create(
+                user=user,
+                defaults={"numero": numero},
+            )
+            membres.append(membre)
+
+        lecteurs, _ = Group.objects.get_or_create(name="Lecteurs")
+        for membre in membres:
+            membre.user.groups.add(lecteurs)
+
+        return membres
+
+    def creer_emprunts(self, membres):
+        aujourdhui = timezone.localdate()
+        livre = Livre.objects.filter(slug="le-petit-prince").first()
+        if not livre or not membres:
+            return
+
+        Emprunt.objects.get_or_create(
+            livre=livre,
+            membre=membres[0],
+            date_emprunt=aujourdhui - timedelta(days=5),
+            defaults={
+                "date_retour_prevue": aujourdhui + timedelta(days=9),
+            },
+        )
+
+        livre2 = Livre.objects.filter(slug="l-etranger").first()
+        if livre2:
+            Emprunt.objects.get_or_create(
+                livre=livre2,
+                membre=membres[1],
+                date_emprunt=aujourdhui - timedelta(days=30),
+                defaults={
+                    "date_retour_prevue": aujourdhui - timedelta(days=2),
+                },
+            )
+
+    def reset(self):
+        Emprunt.objects.all().delete()
+        Livre.objects.filter(
+            slug__in=[livre[1] for livre in LIVRES]
+        ).delete()
+        self.stdout.write("Livres et emprunts de démonstration supprimés.")
+\end{codebox}
+
+\begin{terminal}
+python manage.py donnees_demo
+\end{terminal}
+
+\begin{terminal}
+  + Le Petit Prince
+  + Une si longue lettre
+  + L'Étranger
+  + Le Monde s'effondre
+  + Les Soleils des indépendances
+Données de démonstration prêtes.
+\end{terminal}
+
+\begin{note}
+La commande est idempotente : la relancer ne crée pas de doublons grâce à
+\code{get\_or\_create}. Le mot de passe des comptes de démonstration est volontaire
+et documenté. Ne l'utilisez jamais en production.
+\end{note}
+
+\section{Les comptes créés}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{L{3.4cm} L{4.4cm} X}
+\toprule
+\textbf{Utilisateur} & \textbf{Mot de passe} & \textbf{Rôle} \\
+\midrule
+\code{lecteur1} & \code{Demonstration2026!} & Membre Awa Ndiaye, groupe
+Lecteurs. \\
+\code{lecteur2} & \code{Demonstration2026!} & Membre Kofi Mensah, groupe
+Lecteurs. \\
+\code{admin} & défini à la création & Superutilisateur, tous les droits. \\
+\bottomrule
+\end{tabularx}
+\caption{Comptes de démonstration.}
+\end{table}
+
+\begin{attention}
+Changez immédiatement ces mots de passe si vous déployez le projet sur un serveur
+accessible. Un mot de passe de démonstration est public par construction.
+\end{attention}
+
+\section{Vérifier les données}
+
+\begin{codebox}[python]{Shell Django}
+from catalogue.models import Auteur, Categorie, Emprunt, Livre, Membre
+
+Auteur.objects.count()        # 5
+Categorie.objects.count()     # 5
+Livre.objects.count()         # 5
+Membre.objects.count()        # 2
+Emprunt.objects.count()       # 2
+
+Livre.objects.filter(categories__slug="afrique")
+Emprunt.objects.filter(date_retour__isnull=True)
+\end{codebox}
+
+\section{Réinitialiser}
+
+\begin{terminal}
+python manage.py donnees_demo --reset
+python manage.py donnees_demo
+\end{terminal}
+
+\begin{attention}
+\code{--reset} supprime les emprunts et les livres dont le slug figure dans la
+liste de démonstration. Il ne supprime ni les auteurs, ni les catégories, ni les
+membres. Pour repartir de zéro, utilisez une base de développement dédiée :
+\code{python manage.py flush} vide toutes les données, mais conserve le schéma.
+\end{attention}
+
+\section{Alternative : une fixture JSON}
+
+Pour un jeu de données figé, Django accepte des fixtures. Créez le fichier
+\code{categories.json} dans un dossier \code{fixtures/} de l'application :
+
+\begin{codebox}[json]{catalogue/fixtures/categories.json}
+[
+  {
+    "model": "catalogue.categorie",
+    "pk": 1,
+    "fields": {
+      "nom": "Roman",
+      "slug": "roman",
+      "description": "Fictions longues et récits."
+    }
+  },
+  {
+    "model": "catalogue.categorie",
+    "pk": 2,
+    "fields": {
+      "nom": "Jeunesse",
+      "slug": "jeunesse",
+      "description": "Albums et romans pour les jeunes."
+    }
+  }
+]
+\end{codebox}
+
+\begin{terminal}
+python manage.py loaddata categories
+\end{terminal}
+
+\begin{note}
+La commande \code{loaddata} cherche le fichier dans les dossiers
+\code{fixtures/} des applications installées. Une fixture est pratique pour des
+données de référence stables, moins pour des données qui doivent être recalculées
+ou créées avec des mots de passe hachés.
+\end{note}
+
+\begin{bonne}
+Pour les données de référence (catégories, langues, pays), une migration de données
+ou une commande idempotente est préférable à une fixture. Pour des données de test
+figées, la fixture reste simple et lisible.
+\end{bonne}

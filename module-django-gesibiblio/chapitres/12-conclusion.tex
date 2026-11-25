@@ -1,0 +1,486 @@
+% =====================================================================
+%  Chapitre 12 : Conclusion
+% =====================================================================
+\chapter{Conclusion : bilan, tests et déploiement}
+\label{ch:conclusion}
+
+\chapitreresume{Vous avez construit un catalogue, des formulaires, une
+authentification et des permissions. Ce dernier chapitre rassemble le projet,
+vérifie qu'il fonctionne, ajoute quelques tests et prépare une mise en ligne
+réaliste. Il propose aussi des pistes pour continuer à progresser après la
+formation.}
+
+\begin{objectifs}
+\begin{itemize}
+  \item Relire l'architecture finale de \gesibiblio.
+  \item Passer la checklist de qualité avant de livrer.
+  \item Écrire des tests simples avec le client de test de Django.
+  \item Préparer les fichiers de déploiement.
+  \item Comprendre le rôle de Gunicorn, Nginx, PostgreSQL et WhiteNoise.
+  \item Identifier les prochaines étapes d'apprentissage.
+\end{itemize}
+\end{objectifs}
+
+\section{Le projet en un coup d'\oe il}
+
+Reprenons l'arborescence finale. Elle mélange des fichiers que vous avez écrits et
+des fichiers générés par Django.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{images/arborescence.png}
+\caption{L'architecture finale du projet \gesibiblio. Les dossiers
+\code{templates}, \code{static} et \code{media} sont à la racine, à côté de
+\code{manage.py}.}
+\label{fig:arborescence-finale}
+\end{figure}
+
+\begin{codebox}[tree]{Arborescence finale du projet}
+gesibiblio/
+|-- manage.py
+|-- requirements.txt
+|-- .env.example
+|-- .gitignore
+|-- db.sqlite3
+|-- gesibiblio/
+|   |-- __init__.py
+|   |-- settings.py
+|   |-- urls.py
+|   |-- asgi.py
+|   `-- wsgi.py
+|-- catalogue/
+|   |-- __init__.py
+|   |-- admin.py
+|   |-- apps.py
+|   |-- forms.py
+|   |-- models.py
+|   |-- signals.py
+|   |-- urls.py
+|   |-- views.py
+|   |-- management/
+|   |   `-- commands/
+|   |       |-- creer_groupes.py
+|   |       `-- audit_droits.py
+|   |-- migrations/
+|   |   |-- __init__.py
+|   |   `-- 0001_initial.py
+|   |-- templatetags/
+|   |   |-- __init__.py
+|   |   `-- biblio.py
+|   `-- tests.py
+|-- templates/
+|   |-- base.html
+|   |-- 404.html
+|   |-- 500.html
+|   |-- partials/
+|   |   |-- navbar.html
+|   |   |-- footer.html
+|   |   `-- messages.html
+|   |-- registration/
+|   |   |-- login.html
+|   |   |-- logged_out.html
+|   |   `-- password_reset_form.html
+|   `-- catalogue/
+|       |-- accueil.html
+|       |-- inscription.html
+|       |-- profil.html
+|       |-- livres/
+|       |   |-- liste.html
+|       |   |-- detail.html
+|       |   |-- formulaire.html
+|       |   |-- supprimer.html
+|       |   `-- carte.html
+|       |-- auteurs/
+|       |   `-- detail.html
+|       |-- categories/
+|       |   `-- detail.html
+|       `-- emprunts/
+|           `-- formulaire.html
+|-- static/
+|   |-- css/style.css
+|   |-- js/app.js
+|   `-- img/
+|       |-- logo-gesibiblio.svg
+|       `-- favicon.svg
+`-- media/
+    `-- couvertures/
+\end{codebox}
+
+\begin{note}
+Le fichier \code{db.sqlite3} ne doit pas être versionné. Il contient vos données
+locales, y compris les empreintes de mots de passe. Chaque développeur crée sa
+propre base avec \code{migrate}.
+\end{note}
+
+\section{La checklist de livraison}
+
+Avant de considérer le projet terminé, parcourez cette liste. Cochez chaque point
+dans un vrai projet.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{C{1cm} L{5.1cm} X}
+\toprule
+\textbf{ } & \textbf{Point} & \textbf{Vérification} \\
+\midrule
+$\square$ & Migrations & \code{makemigrations} ne détecte plus de changement. \\
+$\square$ & Tests & \code{python manage.py test} passe sans erreur. \\
+$\square$ & Déploiement & \code{check --deploy} ne signale plus de critique. \\
+$\square$ & Statique & \code{collectstatic} fonctionne. \\
+$\square$ & Médias & Les couvertures s'affichent en développement. \\
+$\square$ & 404 et 500 & Les gabarits existent et s'affichent. \\
+$\square$ & Permissions & Les groupes sont créés et testés. \\
+$\square$ & Mots de passe & Les validateurs sont actifs. \\
+$\square$ & Secrets & \code{SECRET\_KEY} vient de l'environnement. \\
+$\square$ & HTTPS & \code{SECURE\_SSL\_REDIRECT} et cookies sécurisés. \\
+$\square$ & Sauvegardes & Une restauration a été testée. \\
+$\square$ & Journalisation & Les erreurs sont enregistrées. \\
+\bottomrule
+\end{tabularx}
+\caption{Checklist de livraison d'un projet Django.}
+\end{table}
+
+\section{Écrire des tests}
+
+Les tests automatisés vérifient qu'une page répond, qu'un formulaire refuse une
+donnée invalide, qu'un utilisateur sans permission reçoit une 403. Django fournit
+un client de test et une base de test isolée.
+
+\begin{codebox}[python]{catalogue/tests.py}
+from django.contrib.auth.models import User
+from django.test import TestCase
+from django.urls import reverse
+
+from .models import Auteur, Livre
+
+
+class CatalogueTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.auteur = Auteur.objects.create(
+            prenom="Antoine",
+            nom="Saint-Exupéry",
+        )
+        cls.livre = Livre.objects.create(
+            titre="Le Petit Prince",
+            slug="le-petit-prince",
+            isbn="9782070612758",
+            auteur=cls.auteur,
+            annee_publication=1943,
+            nombre_exemplaires=2,
+        )
+
+    def test_accueil_repond(self):
+        response = self.client.get(reverse("catalogue:accueil"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_liste_contient_le_livre(self):
+        response = self.client.get(reverse("catalogue:livre_liste"))
+        self.assertContains(response, "Le Petit Prince")
+
+    def test_detail_livre(self):
+        url = reverse(
+            "catalogue:livre_detail",
+            kwargs={"slug": self.livre.slug},
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Saint-Exupéry")
+
+    def test_livre_absent_renvoie_404(self):
+        url = reverse(
+            "catalogue:livre_detail",
+            kwargs={"slug": "inexistant"},
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_creation_protegee(self):
+        url = reverse("catalogue:livre_creer")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+
+
+class PermissionTests(TestCase):
+    def test_utilisateur_sans_droit_recoit_403(self):
+        user = User.objects.create_user(
+            username="lecteur",
+            password="motdepasse-long-123",
+        )
+        self.client.force_login(user)
+        response = self.client.get(reverse("catalogue:livre_creer"))
+        self.assertEqual(response.status_code, 403)
+\end{codebox}
+
+\begin{terminal}
+python manage.py test
+\end{terminal}
+
+\begin{terminal}
+Found 6 test(s).
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+......
+----------------------------------------------------------------------
+Ran 6 tests in 0.842s
+
+OK
+Destroying test database for alias 'default'...
+\end{terminal}
+
+\begin{description}[leftmargin=4.4cm,style=nextline]
+  \item[\code{setUpTestData}] Prépare les données une fois pour toute la classe.
+  Plus rapide que \code{setUp}, exécuté avant chaque test.
+  \item[\code{self.client.get}] Simule une requête \code{GET}.
+  \item[\code{assertContains}] Vérifie que la réponse contient un texte.
+  \item[\code{force\_login}] Connecte un utilisateur sans passer par le formulaire.
+\end{description}
+
+\begin{bonne}
+Écrivez un test par comportement important : la page répond, l'objet existe, la
+permission bloque, le formulaire refuse. Trois tests utiles valent mieux que zéro
+test. Lancez-les avant chaque livraison et dans l'intégration continue.
+\end{bonne}
+
+\begin{attention}
+Le test \code{test\_creation\_protegee} attend une redirection
+\code{302} vers la connexion pour un visiteur anonyme. Si vous utilisez
+\code{raise\_exception=True} sur \code{login\_required}, adaptez le test. Le
+comportement dépend de la configuration.
+\end{attention}
+
+\section{Préparer le déploiement}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{images/deploiement.png}
+\caption{Une architecture de déploiement classique : Nginx sert les fichiers
+statiques et transmet les requêtes dynamiques à Gunicorn, qui exécute Django. La
+base de données est séparée.}
+\label{fig:deploiement}
+\end{figure}
+
+\subsection{Les fichiers à préparer}
+
+\begin{codebox}[tree]{requirements.txt}
+Django==5.2
+Pillow==11.0.0
+whitenoise==6.8.2
+gunicorn==23.0.0
+psycopg[binary]==3.2.3
+python-dotenv==1.0.1
+\end{codebox}
+
+\begin{note}
+Les versions exactes figent l'environnement. Utilisez \code{pip freeze >
+requirements.txt} après avoir installé vos dépendances, puis vérifiez que
+l'installation fonctionne dans un environnement neuf. \code{gunicorn} est réservé
+à Linux ; sous Windows, utilisez \code{waitress} pour un test local.
+\end{note}
+
+\begin{codebox}[tree]{.gitignore}
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+.env
+media/
+staticfiles/
+.pytest_cache/
+.DS_Store
+\end{codebox}
+
+\begin{codebox}[tree]{.env.example}
+DJANGO_SECRET_KEY=remplacez-moi
+DJANGO_DEBUG=False
+DJANGO_ALLOWED_HOSTS=bibliotheque.example,www.bibliotheque.example
+DATABASE_URL=postgres://utilisateur:motdepasse@localhost:5432/gesibiblio
+EMAIL_HOST=smtp.example.com
+EMAIL_HOST_USER=noreply@example.com
+EMAIL_HOST_PASSWORD=remplacez-moi
+\end{codebox}
+
+\begin{attention}
+Le fichier \code{.env.example} contient des valeurs fictives et peut être
+versionné. Le fichier \code{.env} contient les vrais secrets et ne doit jamais
+l'être. Vérifiez \code{git status} avant chaque commit.
+\end{attention}
+
+\subsection{Les commandes de mise en ligne}
+
+\begin{terminal}
+python -m pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py check --deploy
+gunicorn gesibiblio.wsgi:application --bind 127.0.0.1:8000 --workers 3
+\end{terminal}
+
+\begin{description}[leftmargin=4.4cm,style=nextline]
+  \item[\code{migrate}] Applique le schéma à la base de production.
+  \item[\code{collectstatic}] Rassemble les fichiers statiques.
+  \item[\code{check --deploy}] Vérifie les réglages sensibles.
+  \item[\code{gunicorn}] Lance le serveur d'application. Nginx le place derrière
+  un proxy.
+\end{description}
+
+\begin{attention}
+Ne lancez jamais \code{runserver} en production. C'est un serveur de développement,
+mono-processus et non sécurisé. Il affiche d'ailleurs un avertissement au
+démarrage. Utilisez Gunicorn, uWSGI ou un service équivalent.
+\end{attention}
+
+\subsection{Passer à PostgreSQL}
+
+SQLite convient à l'apprentissage et aux petits sites. Pour plusieurs utilisateurs
+simultanés, PostgreSQL est plus robuste.
+
+\begin{codebox}[python]{gesibiblio/settings.py, extrait}
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME", "gesibiblio"),
+        "USER": os.environ.get("DB_USER", "gesibiblio"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
+    }
+}
+\end{codebox}
+
+\begin{bonne}
+Testez la migration sur une copie de la base avant la production. Sauvegardez,
+migrez, vérifiez, puis seulement basculez le trafic. Une migration ratée sans
+sauvegarde peut coûter des heures.
+\end{bonne}
+
+\subsection{Les médias en production}
+
+Nginx peut servir le dossier \code{media/} :
+
+\begin{codebox}[bash]{nginx.conf, extrait}
+location /static/ {
+    alias /srv/gesibiblio/staticfiles/;
+}
+
+location /media/ {
+    alias /srv/gesibiblio/media/;
+}
+\end{codebox}
+
+\begin{attention}
+Ne laissez pas Django servir les médias en production. Nginx est plus rapide et
+évite d'exécuter du Python pour un fichier. Si les fichiers sont nombreux ou
+distants, utilisez un stockage objet (S3, MinIO) avec \code{django-storages}.
+\end{attention}
+
+\section{Journalisation et supervision}
+
+\begin{codebox}[python]{gesibiblio/settings.py, extrait}
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "fichier": {
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "logs" / "gesibiblio.log",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["fichier"],
+            "level": "INFO",
+        },
+    },
+}
+\end{codebox}
+
+\begin{bonne}
+Journalisez les erreurs, pas les mots de passe ni les données personnelles. Mettez
+en place une alerte sur les erreurs 500 et surveillez l'espace disque, la mémoire
+et le temps de réponse. Un site non supervisé tombe sans que personne ne le
+sache.
+\end{bonne}
+
+\section{Et après ?}
+
+Le projet \gesibiblio{} peut évoluer dans plusieurs directions :
+
+\begin{itemize}
+  \item \textbf{API REST} avec Django REST Framework, pour une application mobile ;
+  \item \textbf{recherche plein texte} avec PostgreSQL ou Elasticsearch ;
+  \item \textbf{réservation en ligne} avec notifications par courrier ;
+  \item \textbf{import de catalogue} depuis un fichier CSV ou un SIGB ;
+  \item \textbf{tableau de bord} avec statistiques d'emprunt ;
+  \item \textbf{tests automatisés} et intégration continue ;
+  \item \textbf{accessibilité} renforcée et mode sombre ;
+  \item \textbf{internationalisation} avec \code{gettext} et plusieurs langues.
+\end{itemize}
+
+\begin{retenir}
+Un bon projet n'est pas celui qui possède le plus de fonctionnalités. C'est celui
+qui reste compris, testé et maintenable six mois plus tard. La simplicité, les
+tests et la documentation valent mieux que la course aux options.
+\end{retenir}
+
+\section{Ressources pour continuer}
+
+\begin{description}[leftmargin=4.3cm,style=nextline]
+  \item[Documentation Django] \url{https://docs.djangoproject.com/fr/5.2/} :
+  la référence, en français pour une grande partie.
+  \item[Tutoriel officiel] La partie \og Premiers pas \fg{} guide la création d'une
+  application de sondages.
+  \item[Django Girls] Un tutoriel accessible aux débutants, disponible en
+  plusieurs langues.
+  \item[MDN Web Docs] Pour consolider HTML, CSS et JavaScript.
+  \item[Real Python] Des articles approfondis sur Django et Python.
+  \item[Awesome Django] Une liste curatée de paquets et de ressources.
+\end{description}
+
+\begin{bonne}
+Lisez le code source de Django lorsque vous ne comprenez pas un comportement. Les
+fichiers sont commentés et les tests montrent les cas limites. C'est une
+compétence qui distingue un débutant d'un développeur autonome.
+\end{bonne}
+
+\section{Glossaire}
+
+\begin{description}[leftmargin=4.1cm,style=nextline]
+  \item[Application] Module Django qui remplit une responsabilité, par exemple
+  \code{catalogue}.
+  \item[Cadriciel (framework)] Ensemble d'outils et de conventions qui structurent
+  une application.
+  \item[CSRF] Attaque qui force un utilisateur connecté à envoyer une requête non
+  désirée. Django la bloque avec un jeton.
+  \item[Gabarit (template)] Fichier HTML contenant des balises Django.
+  \item[Migration] Fichier qui décrit une évolution du schéma de base de données.
+  \item[MVT] Modèle, Vue, Gabarit : l'organisation des responsabilités dans
+  Django.
+  \item[ORM] Couche qui traduit les objets Python en requêtes SQL.
+  \item[Permission] Droit nommé, par exemple \code{add\_livre}.
+  \item[QuerySet] Ensemble de résultats d'une requête ORM, paresseux et
+  chaînable.
+  \item[Slug] Version d'une chaîne utilisable dans une URL.
+  \item[Superutilisateur] Compte qui possède tous les droits.
+  \item[Vue] Fonction ou classe qui reçoit une requête et renvoie une réponse.
+  \item[XSS] Injection de script dans une page. Django échappe le HTML par défaut.
+\end{description}
+
+\section{Mot de la fin}
+
+Vous avez parcouru un chemin complet : installation, structure, vues, gabarits,
+fichiers statiques, modèles, requêtes, administration, formulaires,
+authentification, permissions et déploiement. Ce n'est pas la fin de
+l'apprentissage, c'est un point d'appui.
+
+La prochaine étape est simple : prenez \gesibiblio, ajoutez une fonctionnalité qui
+vous tient à c\oe ur, écrivez un test, et montrez le résultat. C'est en construisant
+que l'on apprend, et c'est en terminant un projet que l'on gagne la confiance
+nécessaire pour le suivant.
+
+\vspace{1cm}
+\begin{flushright}
+\textit{LWANZO PATERNE}\\
+\textit{Formation propulsée par GESITECHNOLOGIES}
+\end{flushright}

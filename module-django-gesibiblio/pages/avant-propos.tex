@@ -1,0 +1,153 @@
+% =====================================================================
+%  Avant-propos
+% =====================================================================
+\chapter*{Avant-propos}
+\addcontentsline{toc}{chapter}{Avant-propos}
+\markboth{Avant-propos}{Avant-propos}
+
+\section*{Pourquoi ce module ?}
+
+Django est l'un des frameworks web les plus utilisés au monde. Il permet de construire
+rapidement des applications solides, sécurisées et maintenables avec Python. Pourtant,
+les débutants se perdent souvent dans la documentation officielle, très complète mais
+peu progressive. Ce module a été écrit pour combler cet écart.
+
+Nous avons choisi un fil rouge unique : une petite application de gestion de
+bibliothèque appelée \gesibiblio. Chaque chapitre ajoute une brique à cette
+application. À la fin, vous ne disposez pas seulement de notes de cours : vous avez
+un projet fonctionnel, que vous pouvez montrer, expliquer et faire évoluer.
+
+\section*{À qui s'adresse ce module ?}
+
+Ce module est destiné aux personnes qui débutent en développement web et qui
+souhaitent apprendre Django par la pratique. Il ne suppose aucune connaissance
+préalable de Django. En revanche, une familiarité minimale avec Python, le terminal
+et le HTML est un vrai atout. Les rappels nécessaires sont fournis au fil des
+chapitres et dans les annexes.
+
+\begin{objectifs}
+À la fin de ce module, vous serez capable de :
+\begin{itemize}
+  \item installer Python, créer un environnement virtuel et installer Django ;
+  \item expliquer le rôle de chaque fichier d'un projet Django ;
+  \item créer une application, des vues, des URL et des gabarits ;
+  \item concevoir des modèles de données et maîtriser les migrations ;
+  \item interroger la base avec l'ORM de Django ;
+  \item gérer les requêtes HTTP, les formulaires et les fichiers envoyés ;
+  \item utiliser l'administration Django et personnaliser son affichage ;
+  \item mettre en place l'authentification, les groupes et les permissions ;
+  \item appliquer les bonnes pratiques de structuration et de sécurité.
+\end{itemize}
+\end{objectifs}
+
+\section*{La méthode : apprendre en construisant}
+
+Chaque chapitre suit la même progression :
+\begin{enumerate}
+  \item une situation concrète, racontée simplement ;
+  \item le concept Django correspondant, expliqué sans jargon inutile ;
+  \item la mise en pratique dans le projet \gesibiblio, avec le code complet ;
+  \item un encadré \og À retenir \fg{} qui fixe les idées clés ;
+  \item des erreurs fréquentes, pour ne pas perdre de temps ;
+  \item un ou deux exercices, avec une correction détaillée.
+\end{enumerate}
+
+Le code présenté est du code réel, testé avec Django 5.2 LTS. Les noms de fichiers,
+les variables et les URL sont cohérents d'un chapitre à l'autre. Vous pouvez donc
+taper le code au fur et à mesure, sans avoir à réinventer l'architecture.
+
+\begin{bonne}
+Tapez le code vous-même. La lecture passive donne l'illusion de comprendre. La
+frappe, les erreurs de syntaxe et les messages du terminal font partie de
+l'apprentissage. Prenez le temps de lire chaque message d'erreur : Django est
+généralement très explicite.
+\end{bonne}
+
+\section*{Le plan de la formation}
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{C{1.3cm} L{8.4cm} C{1.7cm}}
+\toprule
+\textbf{\#} & \textbf{Contenu} & \textbf{Durée} \\
+\midrule
+1 & Introduction : le Web, Django, le modèle MVT et l'environnement & 3 h \\
+2 & Structure d'un projet Django : rôles de chaque fichier, réglages, serveur & 4 h \\
+3 & Création d'une application : vues, URL et première page & 3 h \\
+4 & Chargement d'un gabarit : héritage, blocs, inclusions & 4 h \\
+5 & Fichiers statiques : CSS, images, JavaScript et fichiers média & 4 h \\
+6 & Balises et filtres : affichage dynamique, filtres personnalisés & 4 h \\
+7 & Modèles de données : ORM, relations, migrations et requêtes & 6 h \\
+8 & Gestion des requêtes : HTTP, vues, recherche, pagination & 4 h \\
+9 & Administration Django : inscription des modèles et personnalisation & 3 h \\
+10 & Formulaires Django : validation, création, modification, suppression & 5 h \\
+11 & Authentification : comptes, connexion, profil et sessions & 3 h \\
+12 & Permissions : groupes, droits, sécurité et bonnes pratiques & 3 h \\
+13 & Conclusion : bilan, tests, déploiement et suite du parcours & 2 h \\
+\midrule
+ & \textbf{Total} & \textbf{48 h} \\
+\bottomrule
+\end{tabularx}
+\caption{Plan détaillé du module. La durée inclut les démonstrations et les exercices.}
+\end{table}
+
+Le volume indiqué correspond à une formation guidée. En autonomie, comptez environ
+le double, surtout si vous refaites chaque exercice sans regarder la correction.
+
+\section*{Prérequis et matériel}
+
+\begin{itemize}
+  \item Un ordinateur sous Windows, macOS ou Linux, avec au moins 4 Go de RAM.
+  \item Python 3.10 ou plus récent. Nous utilisons Python 3.12 dans les exemples.
+  \item Un éditeur de code. Visual Studio Code est recommandé, mais PyCharm ou
+        Sublime Text conviennent très bien.
+  \item Une connexion Internet pour installer les paquets et consulter la
+        documentation.
+  \item Aucun serveur web, aucune base de données à installer : Django fournit un
+        serveur de développement et utilise SQLite par défaut.
+\end{itemize}
+
+\section*{Conventions utilisées}
+
+\begin{description}[leftmargin=3.2cm,style=nextline]
+  \item[Code Python] Les blocs avec un fond gris clair et des numéros de ligne
+  contiennent du code à recopier. Le nom du fichier est indiqué dans le bandeau.
+  \item[Terminal] Les blocs sombres contiennent des commandes à exécuter dans le
+  terminal. Le signe \code{\$} n'est pas à recopier sous Windows.
+  \item[Encadrés] Les encadrés \og À retenir \fg, \og Bonne pratique \fg,
+  \og Attention \fg, \og Erreur fréquente \fg{} et \og Note \fg{} mettent en avant
+  les points importants.
+  \item[Exercices] Les exercices sont numérotés par chapitre. Une correction
+  détaillée suit immédiatement, dans un encadré gris.
+  \item[Chemins] Les chemins sont donnés avec des barres obliques, comme dans le
+  code Python. Sous Windows, Django accepte aussi les barres obliques.
+\end{description}
+
+\section*{Versions et compatibilité}
+
+Le module a été rédigé pour \textbf{Django 5.2 LTS} et \textbf{Python 3.12}. Django
+5.2 est une version de support à long terme, ce qui est un choix raisonnable pour
+un projet de formation. Les concepts présentés restent valables pour Django 4.2 et
+pour les versions 5.x suivantes. Les différences éventuelles sont signalées dans
+le texte.
+
+\begin{attention}
+Si vous utilisez une version plus ancienne de Django, certains détails peuvent
+changer, notamment la syntaxe de \code{CheckConstraint} ou le comportement de
+\code{LogoutView}. Vérifiez la version avec \code{python -m django --version} et
+privilégiez Django 5.2 LTS pour suivre le module sans adaptation.
+\end{attention}
+
+\section*{Remerciements}
+
+Ce module a été conçu pour la formation \og Initiation au développement web avec
+Django \fg, propulsée par \textbf{GESITECHNOLOGIES}. Merci aux apprenants et aux
+formateurs qui ont testé les exercices et proposé des améliorations. Leur regard
+concret a rendu ce document plus utile.
+
+\vspace{1cm}
+\begin{flushright}
+\textit{LWANZO PATERNE}\\
+\textit{Formateur en développement web}
+\end{flushright}

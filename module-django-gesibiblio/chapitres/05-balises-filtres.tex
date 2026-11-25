@@ -1,0 +1,728 @@
+% =====================================================================
+%  Chapitre 5 : Balises et filtres
+% =====================================================================
+\chapter{Les balises et les filtres}
+\label{ch:balises}
+
+\chapitreresume{Le langage de gabarit de Django est volontairement limité. Il
+fournit des balises pour les boucles, les conditions et les URL, et des filtres
+pour transformer les valeurs à l'affichage. Dans ce chapitre, vous apprenez les
+balises et filtres essentiels, puis vous créez vos propres filtres et balises
+réutilisables.}
+
+\begin{objectifs}
+\begin{itemize}
+  \item Distinguer une variable, une balise et un filtre.
+  \item Utiliser les balises \code{if}, \code{for}, \code{with}, \code{url},
+        \code{include} et \code{csrf\_token}.
+  \item Appliquer les filtres courants : \code{date}, \code{length},
+        \code{truncatewords}, \code{pluralize}, \code{yesno}.
+  \item Créer un filtre personnalisé et une balise simple.
+  \item Créer une balise d'inclusion pour réutiliser une carte de livre.
+  \item Comprendre l'échappement automatique et éviter les failles XSS.
+\end{itemize}
+\end{objectifs}
+
+\section{La syntaxe du langage de gabarit}
+
+Le langage de gabarit de Django utilise quatre formes :
+
+\begin{codebox}[html]{Les quatre formes de base}
+{# Ceci est un commentaire court #}
+
+{{ livre.titre }}
+
+{{ livre.titre|upper }}
+
+{{ livre.resume|truncatewords:20 }}
+
+{% if livre.est_disponible %}
+  <p>Disponible</p>
+{% endif %}
+\end{codebox}
+
+\begin{description}[leftmargin=3.2cm,style=nextline]
+  \item[\code{\{\{ ... \}\}}] Affiche une valeur. On parle de variable ou
+  d'expression.
+  \item[\code{\{\% ... \%\}}] Exécute une balise : boucle, condition, URL,
+  inclusion, chargement de bibliothèque.
+  \item[\code{\{\# ... \#\}}] Commentaire court, sur une seule ligne. Il n'est pas
+  envoyé au navigateur.
+  \item[\code{|filtre}] Transforme la valeur affichée. Les filtres se chaînent :
+  \code{nom|lower|capfirst}.
+\end{description}
+
+\begin{retenir}
+Le langage de gabarit n'est pas Python. Il ne permet pas d'appeler des fonctions
+avec des arguments, d'importer des modules ou d'écrire des boucles complexes.
+Cette limitation est volontaire : elle protège la séparation entre logique et
+présentation.
+\end{retenir}
+
+\section{Les variables et la recherche par point}
+
+Dans \code{\{\{ livre.auteur.nom \}\}}, Django cherche dans cet ordre :
+\begin{enumerate}
+  \item la clé \code{"auteur"} dans un dictionnaire ;
+  \item l'attribut \code{auteur} d'un objet ;
+  \item la méthode \code{auteur()} sans argument ;
+  \item l'index \code{auteur} d'une liste.
+\end{enumerate}
+
+Puis il répète l'opération pour \code{.nom}. Cette recherche par point explique
+pourquoi \code{\{\{ livre.titre \}\}} fonctionne aussi bien avec un dictionnaire
+qu'avec un objet \code{Livre}.
+
+\begin{codebox}[html]{Exemples de recherche}
+{{ livre.titre }}
+{{ livre.auteur.nom }}
+{{ livre.categories.all }}
+{{ livres.0.titre }}
+{{ user.get_full_name }}
+\end{codebox}
+
+\begin{attention}
+Si une variable n'existe pas, Django affiche une chaîne vide, sans erreur. C'est
+pratique, mais cela peut masquer une faute de frappe. Si la page est vide à
+l'endroit attendu, vérifiez le nom exact de la variable dans la vue.
+\end{attention}
+
+\begin{note}
+\code{\{\{ user.get\_full\_name \}\}} appelle la méthode \code{get\_full\_name()} sans
+parenthèses. Le langage de gabarit ajoute automatiquement les parenthèses pour les
+méthodes qui n'attendent aucun argument. Une méthode qui exige un argument ne peut
+pas être appelée directement.
+\end{note}
+
+\section{Les balises essentielles}
+
+\subsection{if, elif, else}
+
+\begin{codebox}[html]{Conditions}
+{% if livre.est_disponible %}
+  <span class="badge badge-disponible">Disponible</span>
+{% elif livre.statut == "reserve" %}
+  <span class="badge badge-indisponible">Réservé</span>
+{% else %}
+  <span class="badge badge-indisponible">Indisponible</span>
+{% endif %}
+\end{codebox}
+
+Les opérateurs disponibles sont \code{==}, \code{!=}, \code{<}, \code{>},
+\code{<=}, \code{>=}, \code{in}, \code{not in}, \code{is}, \code{is not},
+\code{and}, \code{or} et \code{not}. Les parenthèses ne sont pas autorisées : on
+combine avec \code{and} et \code{or}, en gardant des conditions simples.
+
+\begin{attention}
+\code{\{\% if livre \}\}} teste la vérité de l'objet. Un objet Django est
+généralement vrai, même s'il n'a pas de titre. Pour tester une chaîne vide,
+utilisez \code{\{\% if livre.titre \}\}}. Pour tester une liste vide, utilisez
+\code{\{\% if livres \}\}}.
+\end{attention}
+
+\subsection{for et empty}
+
+\begin{codebox}[html]{Boucle avec forloop}
+<ul>
+  {% for livre in livres %}
+    <li>
+      {{ forloop.counter }}. {{ livre.titre }}
+      {% if forloop.first %}(nouveauté){% endif %}
+      {% if forloop.last %}(dernier de la liste){% endif %}
+    </li>
+  {% empty %}
+    <li>Aucun livre pour le moment.</li>
+  {% endfor %}
+</ul>
+\end{codebox}
+
+\begin{description}[leftmargin=3.6cm,style=nextline]
+  \item[\code{forloop.counter}] Compteur à partir de 1.
+  \item[\code{forloop.counter0}] Compteur à partir de 0.
+  \item[\code{forloop.revcounter}] Compteur à rebours, fin à 1.
+  \item[\code{forloop.first}] Vrai au premier tour.
+  \item[\code{forloop.last}] Vrai au dernier tour.
+  \item[\code{forloop.parentloop}] Boucle parente, dans une boucle imbriquée.
+\end{description}
+
+On peut parcourir un dictionnaire :
+
+\begin{codebox}[html]{Boucle sur un dictionnaire}
+{% for cle, valeur in statistiques.items %}
+  <p>{{ cle }} : {{ valeur }}</p>
+{% endfor %}
+\end{codebox}
+
+Et inverser une liste avec le filtre \code{reversed} :
+
+\begin{codebox}[html]{Boucle inversée}
+{% for livre in livres reversed %}
+  <p>{{ livre.titre }}</p>
+{% endfor %}
+\end{codebox}
+
+\subsection{with}
+
+\code{with} crée un alias pour une expression longue ou coûteuse :
+
+\begin{codebox}[html]{Alias avec with}
+{% with auteur=livre.auteur.nom_complet %}
+  <p>Écrit par {{ auteur }}.</p>
+  <p>Initiales : {{ auteur|initiales }}.</p>
+{% endwith %}
+\end{codebox}
+
+\subsection{url}
+
+\begin{codebox}[html]{Construire une URL}
+<a href="{% url 'catalogue:accueil' %}">Accueil</a>
+<a href="{% url 'catalogue:livre_detail' livre.slug %}">Voir le livre</a>
+\end{codebox}
+
+La balise \code{url} accepte aussi des paramètres nommés :
+
+\begin{codebox}[html]{Paramètres nommés}
+<a href="{% url 'catalogue:livre_detail' slug=livre.slug %}">
+  Voir le livre
+</a>
+\end{codebox}
+
+\subsection{csrf\_token}
+
+Tout formulaire \code{POST} doit contenir \lstinline|{% csrf_token %}|. Sans ce
+jeton, Django refuse la requête avec une erreur \code{403 Forbidden}.
+
+\begin{codebox}[html]{Jeton CSRF}
+<form method="post">
+  {% csrf_token %}
+  <input type="text" name="titre">
+  <button type="submit">Enregistrer</button>
+</form>
+\end{codebox}
+
+\begin{attention}
+\code{csrf\_token} protège contre les attaques CSRF, qui consistent à faire
+envoyer un formulaire à un utilisateur connecté depuis un autre site. Ne
+désactivez jamais cette protection sans raison très précise.
+\end{attention}
+
+\subsection{include, extends et block}
+
+\begin{codebox}[html]{Inclusion et héritage}
+{% extends "base.html" %}
+
+{% block contenu %}
+  {% include "partials/entete.html" %}
+  <p>Contenu de la page.</p>
+{% endblock %}
+\end{codebox}
+
+\code{include} insère un gabarit complet. \code{extends} établit une relation
+d'héritage. Un gabarit enfant ne peut pas utiliser \code{extends} et être inclus
+en même temps : choisissez l'un ou l'autre.
+
+\subsection{comment, autoescape, now, firstof, cycle}
+
+\begin{codebox}[html]{Balises utilitaires}
+{% comment %}
+  Ce bloc est ignoré par Django.
+  Utile pour désactiver temporairement du code.
+{% endcomment %}
+
+{% autoescape off %}
+  {{ contenu_html }}
+{% endautoescape %}
+
+<p>Nous sommes le {% now "d/m/Y" %}.</p>
+
+<p>{{ livre.sous_titre|default:livre.titre }}</p>
+
+{% firstof livre.sous_titre livre.titre "Sans titre" %}
+
+{% for i in "123" %}
+  <span class="{% cycle 'pair' 'impair' %}">{{ i }}</span>
+{% endfor %}
+\end{codebox}
+
+\begin{attention}
+\code{autoescape off} désactive l'échappement HTML pour toute la zone. Ne
+l'utilisez jamais avec du contenu fourni par un utilisateur. Nous y revenons à la
+fin du chapitre.
+\end{attention}
+
+\subsection{verbatim}
+
+Si vous devez afficher des accolades qui ressemblent à des balises Django, par
+exemple dans du JavaScript ou un exemple de code, utilisez \code{verbatim} :
+
+\begin{codebox}[html]{Afficher des accolades}
+{% verbatim %}
+  <p>{{ ceci_est_affiche_tel_quel }}</p>
+{% endverbatim %}
+\end{codebox}
+
+\section{Les filtres essentiels}
+
+Un filtre se place après une valeur, séparé par une barre verticale. Certains
+acceptent un argument après deux-points.
+
+\begin{center}
+\footnotesize
+\begin{tabularx}{\textwidth}{L{8.8cm} X}
+\toprule
+\textbf{Expression} & \textbf{Résultat} \\
+\midrule
+\code{\{\{ livre.titre|upper \}\}} & Le titre en majuscules. \\
+\code{\{\{ livre.titre|lower \}\}} & Le titre en minuscules. \\
+\code{\{\{ livre.titre|title \}\}} & Chaque mot commence par une majuscule. \\
+\code{\{\{ livre.titre|capfirst \}\}} & Seule la première lettre est en majuscule. \\
+\code{\{\{ livre.titre|length \}\}} & Le nombre de caractères. \\
+\code{\{\{ livres|length \}\}} & Le nombre d'éléments de la liste. \\
+\code{\{\{ livre.resume|truncatechars:80 \}\}} & Coupe à 80 caractères. \\
+\code{\{\{ livre.resume|truncatewords:15 \}\}} & Coupe à 15 mots. \\
+\code{\{\{ livre.date\_publication|date:"d/m/Y" \}\}} & Une date au format français. \\
+\code{\{\{ livre.prix|floatformat:2 \}\}} & Deux chiffres après la virgule. \\
+\code{\{\{ livre.categories.all|join:", " \}\}} & Joint les catégories par une virgule. \\
+\code{\{\{ livre.nombre\_exemplaires|pluralize \}\}} & Ajoute \og s \fg{} si le nombre est différent de 1. \\
+\code{\{\{ livre.est\_disponible|yesno:"Oui,Non" \}\}} & Affiche Oui ou Non. \\
+\code{\{\{ livre.titre|slugify \}\}} & Transforme le titre en slug. \\
+\code{\{\{ livre.resume|linebreaks \}\}} & Transforme les sauts de ligne en paragraphes. \\
+\code{\{\{ livre.resume|striptags \}\}} & Supprime les balises HTML. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{default et default\_if\_none}
+
+\begin{codebox}[html]{Valeurs par défaut}
+{{ livre.sous_titre|default:"Sans sous-titre" }}
+{{ livre.editeur|default_if_none:"Éditeur inconnu" }}
+{{ livre.annee|default:"Année inconnue" }}
+\end{codebox}
+
+\code{default} remplace les valeurs fausses : chaîne vide, zéro, liste vide,
+\code{None}. \code{default\_if\_none} ne remplace que \code{None}. La différence
+compte pour un nombre : \code{0|default:"Non renseigné"} affiche
+\og Non renseigné \fg, alors que \code{0|default\_if\_none:"Non renseigné"}
+affiche \code{0}.
+
+\subsection{date et time}
+
+\begin{codebox}[html]{Formats de date}
+{{ livre.date_publication|date:"d/m/Y" }}
+{{ livre.date_publication|date:"l j F Y" }}
+{{ emprunt.date_emprunt|date:"D d M Y" }}
+{{ maintenant|time:"H:i" }}
+\end{codebox}
+
+Les formats les plus utilisés : \code{d} (jour sur deux chiffres), \code{j}
+(jour sans zéro), \code{m} (mois sur deux chiffres), \code{F} (mois en toutes
+lettres), \code{Y} (année sur quatre chiffres), \code{H} (heure sur 24 heures),
+\code{i} (minutes), \code{s} (secondes).
+
+\subsection{pluralize et yesno}
+
+\begin{codebox}[html]{Accords et booléens}
+<p>
+  {{ page_obj.paginator.count }} livre{{ page_obj.paginator.count|pluralize }}
+</p>
+<p>{{ livre.est_disponible|yesno:"Disponible,Indisponible" }}</p>
+\end{codebox}
+
+\code{pluralize} ajoute un \og s \fg{} par défaut. On peut préciser deux formes :
+\code{pluralize:"y,ies"} pour \og copy \fg{} et \og copies \fg.
+
+\subsection{linebreaks, escape et safe}
+
+\begin{codebox}[html]{Texte et HTML}
+{{ livre.resume|linebreaks }}
+{{ livre.resume|linebreaksbr }}
+{{ commentaire|escape }}
+{{ contenu|safe }}
+\end{codebox}
+
+\begin{attention}
+\code{linebreaks} échappe le contenu, puis ajoute des balises \code{<p>} et
+\code{<br>}. \code{safe} ne fait aucun échappement : il déclare que la chaîne est
+déjà du HTML sûr. Utilisez \code{safe} uniquement sur du contenu que vous
+contrôlez entièrement.
+\end{attention}
+
+\section{Créer ses propres filtres et balises}
+
+Les filtres intégrés couvrent la majorité des besoins. Pour les cas spécifiques,
+Django permet d'écrire ses propres bibliothèques de balises.
+
+\subsection{L'arborescence}
+
+Créez un dossier \code{templatetags/} dans l'application, avec un fichier
+\code{\_\_init\_\_.py} vide :
+
+\begin{codebox}[tree]{Arborescence des balises personnalisées}
+catalogue/
+|-- templatetags/
+|   |-- __init__.py
+|   `-- biblio.py
+|-- models.py
+`-- views.py
+\end{codebox}
+
+\begin{attention}
+Le dossier doit s'appeler exactement \code{templatetags}, au pluriel, et se trouver
+dans l'application. Le fichier \code{\_\_init\_\_.py} est obligatoire : sans lui,
+Django ne voit pas le paquet. Redémarrez le serveur après la création.
+\end{attention}
+
+\subsection{Un filtre personnalisé}
+
+\begin{codebox}[python]{catalogue/templatetags/biblio.py}
+from django import template
+
+register = template.Library()
+
+
+@register.filter
+def initiales(nom_complet):
+    """Retourne les initiales d'un nom, par exemple AS."""
+    morceaux = nom_complet.split()
+    return "".join(morceau[0] for morceau in morceaux[:2]).upper()
+\end{codebox}
+
+Utilisation dans un gabarit :
+
+\begin{codebox}[html]{Utilisation du filtre}
+{% load biblio %}
+<p>{{ livre.auteur }} ({{ livre.auteur|initiales }})</p>
+\end{codebox}
+
+\begin{note}
+Le nom du filtre est le nom de la fonction. On peut le changer avec
+\code{@register.filter(name="sigle")}. Le nom doit être un identifiant valide et
+ne pas contenir d'espace.
+\end{note}
+
+\subsection{Une balise simple}
+
+Une balise simple renvoie une valeur. Elle peut recevoir des arguments.
+
+\begin{codebox}[python]{catalogue/templatetags/biblio.py, extrait}
+@register.simple_tag
+def cote(auteur, annee):
+    """Construit une cote simple, par exemple S1943."""
+    return f"{auteur[0].upper()}{annee}"
+\end{codebox}
+
+\begin{codebox}[html]{Utilisation de la balise}
+{% load biblio %}
+<p>Cote : {% cote livre.auteur.nom livre.annee %}</p>
+\end{codebox}
+
+\subsection{Une balise d'inclusion}
+
+Une balise d'inclusion rend un gabarit avec un contexte. C'est la manière propre
+de réutiliser un composant, comme une carte de livre.
+
+\begin{codebox}[python]{catalogue/templatetags/biblio.py, extrait}
+@register.inclusion_tag("catalogue/livres/carte.html")
+def carte_livre(livre):
+    return {"livre": livre}
+\end{codebox}
+
+\begin{codebox}[html]{templates/catalogue/livres/carte.html}
+{% load biblio %}
+<article class="carte-livre">
+  <div class="couverture-vide" aria-hidden="true">
+    {{ livre.titre|first }}
+  </div>
+  <h3>{{ livre.titre|truncatechars:38 }}</h3>
+  <p class="auteur">{{ livre.auteur }}</p>
+  <span class="badge badge-disponible">
+    {{ livre.annee|default:"Année inconnue" }}
+  </span>
+</article>
+\end{codebox}
+
+\begin{codebox}[html]{Utilisation dans la page d'accueil}
+{% load biblio %}
+
+<div class="grille-livres">
+  {% for livre in livres %}
+    {% carte_livre livre %}
+  {% endfor %}
+</div>
+\end{codebox}
+
+\begin{description}[leftmargin=3.5cm,style=nextline]
+  \item[\code{inclusion\_tag}] Déclare une balise qui rend un gabarit. Le
+  dictionnaire renvoyé devient le contexte du gabarit.
+  \item[\code{takes\_context=True}] Permet à la balise de recevoir le contexte
+  complet, par exemple pour lire \code{request.GET}.
+\end{description}
+
+\subsection{Une balise avec contexte}
+
+Pour construire un lien de pagination qui conserve les filtres de recherche, la
+balise a besoin de la requête :
+
+\begin{codebox}[python]{catalogue/templatetags/biblio.py, extrait}
+@register.simple_tag(takes_context=True)
+def url_page(context, numero):
+    """Construit un lien ?page=N en conservant les autres paramètres."""
+    params = context["request"].GET.copy()
+    params["page"] = numero
+    return f"?{params.urlencode()}"
+\end{codebox}
+
+\begin{codebox}[html]{Utilisation}
+<a href="{% url_page page_obj.previous_page_number %}">Précédent</a>
+<a href="{% url_page page_obj.next_page_number %}">Suivant</a>
+\end{codebox}
+
+\begin{note}
+\code{context["request"]} est disponible grâce au processeur de contexte
+\code{django.template.context\_processors.request}, présent dans
+\code{settings.py}. Sans lui, la balise lèverait une erreur
+\code{KeyError: 'request'}.
+\end{note}
+
+\section{Intégrer les composants au projet}
+
+Mettez à jour la vue d'accueil pour enrichir les données :
+
+\begin{codebox}[python]{catalogue/views.py, extrait}
+LIVRES_DEMO = [
+    {
+        "titre": "Le Petit Prince",
+        "auteur": "Antoine de Saint-Exupéry",
+        "annee": 1943,
+        "resume": "Un aviateur rencontre un petit prince venu d'une autre planète.",
+    },
+    {
+        "titre": "Une si longue lettre",
+        "auteur": "Mariama Bâ",
+        "annee": 1979,
+        "resume": "Une lettre qui raconte la vie de femmes sénégalaises.",
+    },
+    {
+        "titre": "L'Étranger",
+        "auteur": "Albert Camus",
+        "annee": 1942,
+        "resume": "Meursault raconte un absurde fait divers sous le soleil d'Alger.",
+    },
+]
+
+
+def accueil(request):
+    return render(
+        request,
+        "catalogue/accueil.html",
+        {"livres": LIVRES_DEMO},
+    )
+
+
+def livre_liste(request):
+    return render(
+        request,
+        "catalogue/livres/liste.html",
+        {"livres": LIVRES_DEMO},
+    )
+\end{codebox}
+
+Puis le gabarit :
+
+\begin{codebox}[html]{templates/catalogue/accueil.html}
+{% extends "base.html" %}
+{% load biblio %}
+
+{% block titre %}Accueil | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <section class="hero">
+    <div>
+      <p class="surtitre">Bibliothèque numérique</p>
+      <h1>Empruntez, lisez, revenez.</h1>
+      <p>
+        {{ livres|length }} livre{{ livres|length|pluralize }} vous attendent
+        dans le catalogue.
+      </p>
+      <a class="bouton bouton-principal"
+         href="{% url 'catalogue:livre_liste' %}">Explorer le catalogue</a>
+    </div>
+  </section>
+
+  <h2>Nouveautés</h2>
+  <div class="grille-livres">
+    {% for livre in livres %}
+      {% carte_livre livre %}
+    {% empty %}
+      <p>Aucun livre pour le moment.</p>
+    {% endfor %}
+  </div>
+{% endblock %}
+\end{codebox}
+
+Ajoutez la route du catalogue dans \code{catalogue/urls.py} :
+
+\begin{codebox}[python]{catalogue/urls.py, extrait}
+path("livres/", views.livre_liste, name="livre_liste"),
+\end{codebox}
+
+Puis créez la page de liste. Elle réutilise la balise \code{carte\_livre} et
+montre comment parcourir une collection :
+
+\begin{codebox}[html]{templates/catalogue/livres/liste.html}
+{% extends "base.html" %}
+{% load biblio %}
+
+{% block titre %}Catalogue | GesiBiblio{% endblock %}
+
+{% block contenu %}
+  <h1>Catalogue</h1>
+  <p>
+    {{ livres|length }} livre{{ livres|length|pluralize }}
+    dans le catalogue.
+  </p>
+
+  <div class="grille-livres">
+    {% for livre in livres %}
+      {% carte_livre livre %}
+    {% empty %}
+      <p>Aucun livre ne correspond à votre recherche.</p>
+    {% endfor %}
+  </div>
+{% endblock %}
+\end{codebox}
+
+\begin{note}
+La recherche, les filtres et la pagination seront ajoutés au chapitre de la
+gestion des requêtes. Pour l'instant, la page affiche toute la liste de
+démonstration.
+\end{note}
+
+Ajoutez un petit style pour les initiales si vous les affichez :
+
+\begin{codebox}[css]{static/css/style.css, extrait}
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--white);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+\end{codebox}
+
+\section{Sécurité : échappement et XSS}
+
+Django échappe automatiquement les variables. Si un utilisateur enregistre une
+balise \code{<script>} contenant du code JavaScript dans le résumé d'un livre, le
+gabarit affiche le texte au lieu de l'exécuter.
+
+\begin{codebox}[html]{Échappement automatique}
+{{ livre.resume }}
+\end{codebox}
+
+Le navigateur reçoit :
+
+\begin{codebox}[html]{HTML produit}
+&lt;script&gt;alert("xss")&lt;/script&gt;
+\end{codebox}
+
+Avec \code{|safe}, le script serait exécuté. C'est une faille XSS.
+
+\begin{codebox}[html]{À ne jamais faire avec une donnée utilisateur}
+{{ livre.resume|safe }}
+\end{codebox}
+
+\begin{attention}
+Les filtres \code{escape} et l'échappement automatique sont vos amis. Si vous
+avez besoin d'afficher du HTML riche, utilisez une bibliothèque de nettoyage comme
+\code{bleach} ou \code{nh3}, puis marquez le résultat comme sûr uniquement après
+nettoyage. Ne faites jamais confiance à une chaîne envoyée par un utilisateur.
+\end{attention}
+
+\begin{bonne}
+Règle simple : pas de \code{safe} sur les champs remplis par les utilisateurs. Pour
+les sauts de ligne, utilisez \code{linebreaks} ou \code{linebreaksbr}, qui
+échappent le contenu avant d'ajouter les balises.
+\end{bonne}
+
+\section{Exercices}
+
+\begin{exercice}[ : compter et accorder]
+Affichez le nombre de livres de la page d'accueil avec \code{length} et
+\code{pluralize}. Le texte doit être correct pour 0, 1 et plusieurs livres.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[html]{Extrait}
+<p>
+  {{ livres|length }}
+  livre{{ livres|length|pluralize }}
+  dans la sélection.
+</p>
+\end{codebox}
+
+Avec 0 livre, \code{pluralize} renvoie \og s \fg{} car 0 est différent de 1. Le
+texte affiche donc \og 0 livres \fg. Avec 1, il affiche \og 1 livre \fg.
+\end{correction}
+
+\begin{exercice}[ : filtre extrait]
+Créez un filtre \code{extrait} qui renvoie les 90 premiers caractères d'un texte,
+suivis de points de suspension si le texte est plus long.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[python]{catalogue/templatetags/biblio.py, extrait}
+@register.filter
+def extrait(texte, longueur=90):
+    texte = str(texte)
+    if len(texte) <= longueur:
+        return texte
+    return texte[:longueur].rstrip() + "..."
+\end{codebox}
+
+\begin{codebox}[html]{Utilisation}
+{{ livre.resume|extrait:70 }}
+\end{codebox}
+
+Le filtre accepte un argument optionnel. \code{rstrip()} évite de couper au milieu
+d'un espace.
+\end{correction}
+
+\begin{exercice}[ : balise de date]
+Créez une balise simple \code{aujourdhui} qui affiche la date du jour au format
+\code{d/m/Y}. Utilisez \code{django.utils.timezone.localdate}.
+\end{exercice}
+
+\begin{correction}
+\begin{codebox}[python]{catalogue/templatetags/biblio.py, extrait}
+from django.utils import timezone
+
+
+@register.simple_tag
+def aujourdhui():
+    return timezone.localdate().strftime("%d/%m/%Y")
+\end{codebox}
+
+\begin{codebox}[html]{Utilisation}
+{% load biblio %}
+<p>Mis à jour le {% aujourdhui %}.</p>
+\end{codebox}
+\end{correction}
+
+\begin{retenir}
+\begin{itemize}
+  \item \code{\{\{ ... \}\}} affiche, \code{\{\% ... \%\}} exécute.
+  \item Les filtres transforment une valeur et se chaînent.
+  \item \code{if}, \code{for}, \code{with}, \code{url} et \code{include} couvrent
+        la majorité des gabarits.
+  \item \code{csrf\_token} est obligatoire dans les formulaires \code{POST}.
+  \item Les balises personnalisées vivent dans \code{templatetags/}.
+  \item L'échappement automatique protège du XSS ; \code{safe} doit rester
+        exceptionnel.
+\end{itemize}
+\end{retenir}

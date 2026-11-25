@@ -1,0 +1,159 @@
+MODULE DE FORMATION : INITIATION AU DÉVELOPPEMENT WEB AVEC DJANGO
+Projet fil rouge : GesiBiblio
+Auteur : LWANZO PATERNE
+Formation propulsée par GESITECHNOLOGIES
+
+======================================================================
+1. CONTENU DU DOSSIER
+======================================================================
+
+main.tex                  Fichier principal à compiler
+main-rapide.tex           Compilation d'un seul chapitre, pour Overleaf gratuit
+preamble.tex              Préambule : couleurs, code, encadrés, polices
+LISEZ-MOI.txt             Ce fichier
+Module_Django_GesiBiblio.txt  Version texte, copiable en un seul bloc
+main.pdf                  PDF déjà compilé, pour consultation
+pages/
+  garde.tex               Page de garde avec le logo GESI
+  avant-propos.tex        Présentation, plan et conventions
+chapitres/
+  00-introduction.tex     Web, Django, MVT, environnement
+  01-structure-projet.tex Structure du projet et settings.py
+  02-creation-app.tex     Création de l'application catalogue
+  03-gabarits.tex         render, héritage, blocs, inclusions
+  04-fichiers-statiques.tex CSS, images, JavaScript, médias
+  05-balises-filtres.tex  Balises, filtres, balises personnalisées
+  06-modeles.tex          Modèles, relations, migrations, ORM
+  07-requetes.tex         HTTP, vues, recherche, pagination
+  08-admin.tex            Administration Django
+  09-formulaires.tex      Formulaires, validation, envoi de fichiers
+  10-authentification.tex Comptes, connexion, sessions
+  11-permissions.tex      Groupes, droits, sécurité
+  12-conclusion.tex       Bilan, tests, déploiement
+annexes/
+  A-installation.tex      Installation pas à pas
+  B-aide-memoire.tex      Commandes, ORM, balises, filtres
+  C-erreurs-frequentes.tex Catalogue des erreurs et solutions
+  D-donnees-demonstration.tex Commande de données de démonstration
+images/
+  logo-gesi.png           Logo GESI
+  mvt.png                 Schéma du modèle MVT
+  heritage.png            Héritage de gabarits
+  modele_bdd.png          Modèle de données
+  cycle_emprunt.png       Cycle de vie d'un emprunt
+  permissions.png         Groupes et permissions
+  admin_mockup.png        Aperçu de l'administration
+  deploiement.png         Architecture de déploiement
+  arborescence.png        Arborescence du projet
+
+======================================================================
+2. COMPILER SUR OVERLEAF
+======================================================================
+
+1. Connectez-vous à Overleaf.
+2. Cliquez sur "New Project", puis "Upload Project".
+3. Sélectionnez l'archive Module_Django_GesiBiblio.zip.
+4. Ouvrez main.tex.
+5. Ouvrez l'icône Réglages (roue dentée, à gauche), onglet Compiler,
+   et réglez "Compiler" sur XeLaTeX ou pdfLaTeX. Les deux fonctionnent ;
+   XeLaTeX est recommandé.
+6. Cliquez sur Recompile. Compilez deux fois pour que la table des
+   matières et les numéros de page soient à jour.
+
+Le document compile aussi en local avec Tectonic, XeLaTeX ou pdfLaTeX.
+Commande locale possible :
+
+  tectonic -X compile main.tex
+
+ou
+
+  latexmk -pdf main.tex
+
+======================================================================
+3. COMPILER EN LOCAL
+======================================================================
+
+Prérequis : une distribution LaTeX récente (TeX Live 2023 ou plus,
+MiKTeX, MacTeX) avec les paquets courants.
+
+  pdflatex main.tex
+  pdflatex main.tex
+
+ou
+
+  xelatex main.tex
+  xelatex main.tex
+
+En cas de paquet manquant avec TeX Live :
+
+  tlmgr install tcolorbox fontawesome5 tabularx booktabs titlesec
+
+======================================================================
+4. PERSONNALISER
+======================================================================
+
+- Le nom de l'auteur se trouve dans pages/garde.tex, pages/avant-propos.tex
+  et chapitres/12-conclusion.tex.
+- Les couleurs sont définies dans preamble.tex, section "Couleurs".
+- Le logo est images/logo-gesi.png. Remplacez-le par votre fichier en
+  conservant le même nom, ou modifiez le chemin dans pages/garde.tex.
+- Le bandeau "Formation propulsée par GESITECHNOLOGIES" se trouve dans
+  pages/garde.tex et templates/partials/footer.html du projet Django.
+
+======================================================================
+5. VERSION TEXTE
+======================================================================
+
+Le fichier Module_Django_GesiBiblio.txt est fourni à côté de l'archive et
+à la racine de ce dossier. Il contient une version texte du module,
+copiable en un seul bloc. Il est généré à partir des sources LaTeX et ne
+remplace pas le PDF pour les figures et la mise en page.
+
+======================================================================
+6. COMPILER RAPIDEMENT SUR OVERLEAF
+======================================================================
+
+Le plan gratuit d'Overleaf limite chaque compilation a 10 secondes.
+Le module complet depasse 200 pages : il ne peut pas tenir dans ce
+delai, meme en mode brouillon. Le message "Your project needs more
+compile time" vient de cette limite, pas d'une erreur du document.
+
+Trois solutions :
+
+1. Lire le PDF deja compile : Module_Django_GesiBiblio.pdf. Aucune
+   compilation n'est necessaire.
+
+2. Travailler chapitre par chapitre sur Overleaf avec main-rapide.tex :
+   - ouvrez main-rapide.tex ;
+   - laissez une seule ligne \newcommand{\chapitrecompile}{...} active ;
+   - dans l'icône Réglages (roue dentée), onglet Compiler, choisissez
+     main-rapide.tex comme Main document ;
+   - compilez. Le mode draft ignore les images et accelere la compilation.
+   Pour afficher les images, remplacez draft par final.
+
+3. Compiler en local avec Tectonic, TeX Live ou MiKTeX : il n'y a pas
+   de limite de 10 secondes. Voir la section 3.
+
+Le plan payant d'Overleaf porte le delai a 240 secondes, ce qui suffit
+generalement pour le module complet. Le mode Fast [draft] du menu
+Recompile peut aussi aider, mais il ne garantit pas de tenir en 10 s.
+
+======================================================================
+7. RAPPEL SUR LE CODE DJANGO
+======================================================================
+
+Le code présent dans le module est pédagogique et cohérent avec
+Django 5.2 LTS et Python 3.12. Pour l'exécuter :
+
+  python -m venv .venv
+  .\.venv\Scripts\Activate.ps1     (Windows)
+  source .venv/bin/activate         (macOS et Linux)
+  python -m pip install "Django==5.2" Pillow
+  django-admin startproject gesibiblio .
+  python manage.py startapp catalogue
+  python manage.py migrate
+  python manage.py runserver
+
+Reportez-vous aux chapitres pour le détail des fichiers et des commandes.
+
+Bon apprentissage.
